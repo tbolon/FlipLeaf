@@ -27,6 +27,17 @@
 
         public IReadOnlyList<ProjectItem> Includes => _includes;
 
+        public static string DetectRootDir(string dir)
+        {
+            if (Directory.Exists(Path.Combine(dir, "content")))
+                return dir;
+
+            if (Directory.Exists(Path.Combine(dir, @"..\..\content")))
+                return Path.Combine(dir, @"..\..");
+
+            return dir;
+        }
+
         public void Populate()
         {
             foreach (var filePath in Directory.GetFiles(_rootDir, "*.*", SearchOption.AllDirectories))

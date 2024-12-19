@@ -133,9 +133,9 @@ namespace FlipLeaf
             var layoutContext = CreateTemplateContext();
             layoutContext.SetValue(KnownVariables.Page, sourceContext.GetValue(KnownVariables.Page));
             layoutContext.SetValue(KnownVariables.Layout, layout.YamlHeader);
+            layoutContext.SetValue("body", source);
             //layoutContext.SetValue(KnownVariables.Site, website);
 
-            layoutContext.AmbientValues.Add("body", source);
 
             // render layout
             source = await layout.RenderAsync(layoutContext).ConfigureAwait(false);

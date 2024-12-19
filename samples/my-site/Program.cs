@@ -1,23 +1,34 @@
 ﻿var dir = Environment.CurrentDirectory;
+dir = Project.DetectRootDir(dir);
+
+var project = new Project(dir);
+project.Populate();
 
 var dest = Path.Combine(dir, "out");
 if (!Directory.Exists(dest))
     Directory.CreateDirectory(dest);
 
-var files = Directory.GetFiles(Path.Combine(dir, "content"), "*.*");
+var yaml = new YamlMarkup();
+var liquid = new LiquidMarkup(yaml);
+var md = new MarkdownMarkup();
 
-foreach (var file in files)
+liquid.LoadTemplates(project);
+
+foreach (var file in project.Content)
 {
-    switch (Path.GetExtension(file).ToLowerInvariant())
+    switch (file.Extension.ToLowerInvariant())
     {
         case ".md":
-            var md = File.ReadAllText(file);
-            var output = Markdig.Markdown.ToHtml(md);
-            File.WriteAllText(Path.Combine(dest, Path.GetFileNameWithoutExtension(file) + ".html"), output);
+            var content = file.ReadAllText();
+            var headers = yaml.ParseHeader(content, out content);
+            content = await liquid.RenderAsync(content, headers, out var context);
+            content = md.Render(content);
+            content = await liquid.ApplyLayoutAsync(content, context);
+            File.WriteAllText(Path.Combine(dest, Path.GetFileNameWithoutExtension(file.Name) + ".html"), content);
             break;
 
         default:
-            File.Copy(file, Path.Combine(dest, Path.GetFileName(file)));
+            File.Copy(file.FullPath, Path.Combine(dest, file.Name));
             break;
     }
 }
