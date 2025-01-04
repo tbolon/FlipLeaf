@@ -2,6 +2,8 @@
 using Markdig.Extensions.CustomContainers;
 using Markdig.Renderers;
 using Markdig.Renderers.Html;
+using Markdown.ColorCode;
+using Markdown.ColorCode.CSharpToColoredHtml;
 
 namespace FlipLeaf
 {
@@ -18,10 +20,15 @@ namespace FlipLeaf
         {
             var builder = new MarkdownPipelineBuilder();
             builder.Extensions.AddIfNotAlready(new CodeSnippetExtension());
+
+            builder
+                .UseAdvancedExtensions()
+                .UseColorCodeWithCSharpToColoredHtml(styleDictionary: ColorCode.Styling.StyleDictionary.DefaultLight);
+
             //builder.Extensions.AddIfNotAlready(new WikiLinkExtension() { Extension = ".md" });
             //builder.Extensions.AddIfNotAlready(new CustomLinkInlineRendererExtension(settings.BaseUrl));
 
-            _pipeline = builder.UseAdvancedExtensions().Build();
+            _pipeline = builder.Build();
         }
 
         public string Render(string markdown)
@@ -34,7 +41,7 @@ namespace FlipLeaf
 
                 renderer.ObjectRenderers.Insert(0, new CodeCustomContainerRenderer());
 
-                var doc = Markdown.Parse(markdown, _pipeline);
+                var doc = Markdig.Markdown.Parse(markdown, _pipeline);
 
                 renderer.Render(doc);
 
@@ -69,7 +76,7 @@ namespace FlipLeaf
                 renderer.Write("<pre><code>");
             }
 
-            
+
 
             // We don't escape a CustomContainer
             renderer.WriteChildren(obj);
