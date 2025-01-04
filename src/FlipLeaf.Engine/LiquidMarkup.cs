@@ -29,10 +29,10 @@ namespace FlipLeaf
             {
                 var content = file.ReadAllText();
 
-                HeaderFieldDictionary? yamlHeader;
+                HeaderFieldDictionary yamlHeader;
                 try
                 {
-                    yamlHeader = _yaml.ParseHeader(content, out content);
+                    (content, yamlHeader) = _yaml.ParseHeader(content);
                 }
                 catch (Exception ex)
                 {
@@ -86,19 +86,20 @@ namespace FlipLeaf
             }
         }
 
-        public ValueTask<string> RenderAsync(string content, HeaderFieldDictionary headers, out TemplateContext templateContext)
+        public async ValueTask<(string content, TemplateContext templateContext)> RenderAsync(string content, HeaderFieldDictionary headers)
         {
             // parse content as template
             var parser = new FluidParser();
             var pageTemplate = parser.Parse(content);
 
             // prepare context
-            templateContext = CreateTemplateContext();
+           var templateContext = CreateTemplateContext();
             templateContext.SetValue(KnownVariables.Page, headers);
             //templateContext.SetValue(KnownVariables.Site, website);
 
             // render content
-            return pageTemplate.RenderAsync(templateContext);
+            var newContent = await pageTemplate.RenderAsync(templateContext);
+            return (newContent, templateContext);
         }
 
         public async ValueTask<string> ApplyLayoutAsync(string source, TemplateContext sourceContext)

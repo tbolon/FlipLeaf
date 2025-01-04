@@ -75,7 +75,8 @@
             Name = Path.GetFileName(relativePath);
             RelativePath = relativePath.Replace('\\', '/');
             FullPath = Path.Combine(rootDir, relativePath).Replace('\\', '/');
-            Extension = Path.GetExtension(FullPath);
+            Extension = Path.GetExtension(FullPath).ToLowerInvariant();
+            OutName = Name;
         }
 
         /// <summary>
@@ -91,6 +92,8 @@
         public string FullPath { get; init; }
 
         public string Extension { get; init; }
+
+        public string OutName { get; set; }
 
         public override string ToString() => RelativePath;
 

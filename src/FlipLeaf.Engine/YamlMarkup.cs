@@ -76,10 +76,10 @@ namespace FlipLeaf
             }
         }
 
-        public HeaderFieldDictionary ParseHeader(string content, out string newContent)
+        public (string content, HeaderFieldDictionary headers) ParseHeader(string content)
         {
             HeaderFieldDictionary items;
-            newContent = content;
+            var newContent = content;
             bool parsed;
             HeaderFieldDictionary? pageContext;
             try
@@ -101,7 +101,7 @@ namespace FlipLeaf
                 }
             }
 
-            return items;
+            return (newContent, items);
         }
 
         public bool TryParseHeader(ref string source, out HeaderFieldDictionary? pageContext)
