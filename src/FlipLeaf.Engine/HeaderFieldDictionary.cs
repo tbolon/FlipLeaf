@@ -5,13 +5,13 @@
     {
     }
 
-    public T[] GetArray<T>(string name) => GetCollection<T>(name).ToArray();
+    public T[] GetArray<T>(string name) => [.. GetCollection<T>(name)];
 
     public IEnumerable<T> GetCollection<T>(string name)
     {
-        if (!(this.GetValueOrDefault(name) is IEnumerable<object> objects))
+        if (this.GetValueOrDefault(name) is not IEnumerable<object> objects)
         {
-            return Enumerable.Empty<T>();
+            return [];
         }
 
         return objects.Cast<T>();
