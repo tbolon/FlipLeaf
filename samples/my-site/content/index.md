@@ -253,7 +253,115 @@ for (int i = 0; i < 1000; i++)
 Console.ReadLine();
 ```
 
-**TODO GIF cf. t:17m54s**
+Uniquement des zéros.
+
+Car désormais nous réimplémentons nous-même cette couche de bas-niveau, et nous devons donc aussi réimplémenter ces fonctionnalités.
+
+C'est l'un des aspects intéressants lorsque l'on commence à regarder sous le capot : l'occasion de réorganiser notre modèle mental en ayant compris quel était la fonction de chaque pièce du puzzle.
+
+Pour en revenir à notre cas, plutôt que stocker uniquement l'action à exécuter, nous allons aussi stocker le contexte d'exécution, qui sera transmis lors des échanges entres threads.
+
+```csharp
+static class MyThreadPool
+{
+    // on stocke désormais une instance de ExecutionContext
+    private static readonly BlockingCollection<(Action, ExecutionContext?)> s_workItems = new();
+
+    // on capture le contexte d'exécution au moment de programmer l'action
+    public static void QueueUserWorkItem(Action action) => s_workItems.Add((action, ExecutionContext.Capture()));
+
+    static MyThreadPool()
+    {
+        for (int i = 0; i < Environment.ProcessorCount; i++)
+        {
+            new Thread(() => {
+                while (true)
+                {
+                    // on récupère le contexte d'exécution
+                    (Action workItem, ExecutionContext? context)  = s_workItems.Take();
+                    workItem();
+                }
+             }) { IsBackground = true }.Start();
+        }
+    }
+}
+```
+
+:::note
+La classe `ExecutionContext` ressemble a un simple `Dictionary<,>` qui est stocké dans la zone de stockage du thread. La classe en elle-même est plus complexe, mais surtout par souci d'optimisation.
+:::
+
+L'API Capture() va permettre d'extraire les données d'exécution du thread courant pour la passer à la tâche invoquée.
+
+Il va donc falloir ensuite *restaurer* ce contexte d'exécution pour le rendre disponible sur notre code :
+
+
+```csharp
+static class MyThreadPool
+{
+    private static readonly BlockingCollection<(Action, ExecutionContext?)> s_workItems = new();
+
+    public static void QueueUserWorkItem(Action action) => s_workItems.Add((action, ExecutionContext.Capture()));
+
+    static MyThreadPool()
+    {
+        for (int i = 0; i < Environment.ProcessorCount; i++)
+        {
+            new Thread(() => {
+                while (true)
+                {
+                    (Action workItem, ExecutionContext? context)  = s_workItems.Take();
+
+                    if (context == null)
+                    {
+                        // pas de contexte d'exécution
+                        workItem();
+                    }
+                    else
+                    {
+                        // lancement de l'action
+                        ExecutionContext.Run(context, delegate { workItem(); }, null);
+                    } 
+                }
+             }) { IsBackground = true }.Start();
+        }
+    }
+}
+```
+
+**Disgression sur nullability et les delegates**
+
+Ok donc nous avons un code qui commence à prendre forme pour nous permettre de programmer des tâches asynchrones qui s'exécutent dans un contexte adapté (elles héritent correctement du contexte parent).
+
+Nous pouvons lancer ces tâches et continuer à faire notre traitement, par contre nous n'avons pas de moyen d'attendre ces tâches, ou d'être au courant lorsqu'elles se terminent.
+
+C'est pour cette raison qu'il reste ce `Console.ReadLine()` qui permet au programme d'attendre la fin de l'exécution avant de se terminer.
+
+Pour pouvoir être informé de l'exécution de ces travaux il nous manque un objet représentant ce travail.
+
+## L'objet Task
+
+Nous allons donc implémenter notre propre version d'une tâche qui va nous permettre d'interagir avec cet asynchronisme.
+
+Cette tâche sera une simple classe, contenant quelques données à propos de notre tâche.
+
+Par exemple le fait de savoir si elle est terminée ou non, via une propriété `IsCompleted`.
+
+Il nous faut donc aussi des méthodes pour indiquer lorsque cette tâche s'est terminée, que ce soit correctement (`SetResult()`), ou avec une erreur (`SetException(Exception ex)`).
+
+```csharp
+public class MyTask
+{
+    public bool IsCompleted { get; }
+    public void SetResult() { }
+    public void SetException(Exception exception) { }
+}
+```
+
+:::note
+Dans le runtime .NET, cette structure est en réalité découpée en deux classes : Task et TaskCompletionSource. L'objectif est de distinguer la partie uniquement observable (avec `IsCompleted`) de la partie modifiable, ceci afin d'éviter que l'observateur puisse marquer la tâche comme terminée alors qu'il n'en est pas responsable.
+:::
+
 
 **t:13m50s**
 
