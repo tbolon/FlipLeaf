@@ -37,9 +37,10 @@ Prenons l'exemple suivant :
 for (int i = 0; i < 1000; i++)
 {
     // cette ligne demande au thread pool de mettre en file d'attente un traitement
-    ThreadPool.QueueUserWorkItem(delegate { /* traitement s'exécutant en fond */ })
+    ThreadPool.QueueUserWorkItem(delegate { /* traitement s'exécutant en fond */ });
     // et immédiatement aprés, je peux effectuer un autre traitement
 }
+
 Console.ReadLine();
 ```
 
@@ -73,7 +74,7 @@ for (int i = 0; i < 1000; i++)
     ThreadPool.QueueUserWorkItem(delegate {
         Console.WriteLine(i);
         Thread.Sleep(1000);
-    })
+    });
 }
 Console.ReadLine();
 ```

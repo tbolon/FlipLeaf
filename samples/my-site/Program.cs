@@ -1,7 +1,6 @@
-﻿using System.Diagnostics;
-using System.Xml.Linq;
-using Microsoft.Extensions.Caching.Memory;
+﻿using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
+using System.Xml.Linq;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 
@@ -123,7 +122,6 @@ async Task GenerateAll()
     {
         await GenerateContent(item);
     }
-
 }
 
 async Task GenerateContent(ProjectItem item)
@@ -134,5 +132,4 @@ async Task GenerateContent(ProjectItem item)
         if (await step.Invoke(item)) break;
     }
     Console.WriteLine($"✅ {item.Name} generated");
-
 }

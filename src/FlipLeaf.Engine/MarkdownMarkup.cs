@@ -1,18 +1,14 @@
-﻿using System.Text;
-using ColorCode;
+﻿using ColorCode;
 using ColorCode.Common;
-using ColorCode.Compilation.Languages;
 using ColorCode.Styling;
 using CsharpToColouredHTML.Core;
 using Markdig;
 using Markdig.Extensions.CustomContainers;
-using Markdig.Helpers;
 using Markdig.Parsers;
 using Markdig.Renderers;
 using Markdig.Renderers.Html;
 using Markdig.Syntax;
-using Markdown.ColorCode;
-using Markdown.ColorCode.CSharpToColoredHtml;
+using System.Text;
 
 namespace FlipLeaf
 {
