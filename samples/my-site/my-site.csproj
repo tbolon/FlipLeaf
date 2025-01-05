@@ -1,9 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="C:\code\perso\FlipLeaf\src\FlipLeaf.Sdk\Sdk\Sdk.props" />
 
-  <ItemGroup>
-    <Watch Include="content/**/*.*;includes/**/*.*;layouts/**/*.*" />
-  </ItemGroup>
-
   <Import Project="C:\code\perso\FlipLeaf\src\FlipLeaf.Sdk\Sdk\Sdk.targets" />
 </Project>

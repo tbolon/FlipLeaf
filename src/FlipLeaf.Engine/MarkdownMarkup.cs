@@ -1,7 +1,16 @@
-﻿using Markdig;
+﻿using System.Text;
+using ColorCode;
+using ColorCode.Common;
+using ColorCode.Compilation.Languages;
+using ColorCode.Styling;
+using CsharpToColouredHTML.Core;
+using Markdig;
 using Markdig.Extensions.CustomContainers;
+using Markdig.Helpers;
+using Markdig.Parsers;
 using Markdig.Renderers;
 using Markdig.Renderers.Html;
+using Markdig.Syntax;
 using Markdown.ColorCode;
 using Markdown.ColorCode.CSharpToColoredHtml;
 
@@ -19,11 +28,12 @@ namespace FlipLeaf
         public MarkdownMarkup()
         {
             var builder = new MarkdownPipelineBuilder();
-            builder.Extensions.AddIfNotAlready(new CodeSnippetExtension());
+            //builder.Extensions.AddIfNotAlready(new CodeSnippetExtension());
 
             builder
-                .UseAdvancedExtensions()
-                .UseColorCodeWithCSharpToColoredHtml(styleDictionary: ColorCode.Styling.StyleDictionary.DefaultLight);
+                .UseAdvancedExtensions();
+
+            builder.Extensions.AddIfNotAlready(new CustomCodeBlockRenderer());
 
             //builder.Extensions.AddIfNotAlready(new WikiLinkExtension() { Extension = ".md" });
             //builder.Extensions.AddIfNotAlready(new CustomLinkInlineRendererExtension(settings.BaseUrl));
@@ -49,6 +59,120 @@ namespace FlipLeaf
 
                 return writer.ToString();
             }
+        }
+    }
+
+    public sealed class CustomCodeBlockRenderer : IMarkdownExtension
+    {
+        /// <inheritdoc/>
+        public void Setup(MarkdownPipelineBuilder pipeline)
+        {
+        }
+
+        /// <inheritdoc/>
+        public void Setup(MarkdownPipeline pipeline, IMarkdownRenderer renderer)
+        {
+            if (renderer is not TextRendererBase<HtmlRenderer> htmlRenderer)
+                return;
+
+            var codeBlockRenderer = htmlRenderer.ObjectRenderers.FindExact<CodeBlockRenderer>();
+
+            if (codeBlockRenderer is not null)
+            {
+                htmlRenderer.ObjectRenderers.Remove(codeBlockRenderer);
+            }
+            else
+            {
+                codeBlockRenderer = new CodeBlockRenderer();
+            }
+
+            htmlRenderer.ObjectRenderers.AddIfNotAlready(new ColorCodeBlockRenderer(codeBlockRenderer));
+        }
+    }
+
+    internal sealed class ColorCodeBlockRenderer : HtmlObjectRenderer<CodeBlock>
+    {
+        private readonly CodeBlockRenderer _fallback;
+
+        public ColorCodeBlockRenderer(CodeBlockRenderer fallback)
+        {
+            _fallback = fallback;
+        }
+
+        protected override void Write(HtmlRenderer renderer, CodeBlock codeBlock)
+        {
+            if (codeBlock is not FencedCodeBlock fencedCodeBlock || codeBlock.Parser is not FencedCodeBlockParser fencedCodeBlockParser)
+            {
+                _fallback.Write(renderer, codeBlock);
+                return;
+            }
+
+            var languageId = fencedCodeBlock.Info!.Replace(fencedCodeBlockParser.InfoPrefix!, string.Empty);
+
+            var language = string.IsNullOrWhiteSpace(languageId) ? null : Languages.FindById(languageId);
+
+            if (language is null)
+            {
+                _fallback.Write(renderer, codeBlock);
+                return;
+            }
+
+            var code = ExtractCode(codeBlock);
+
+            string html;
+            if (language.Id == LanguageId.CSharp)
+            {
+                Console.WriteLine("Using CsharpColourer");
+                var csharpColourer = new CsharpColourer();
+                var settings = new HTMLEmitterSettings
+                {
+                    AddLineNumber = false,
+                    UseIframe = false,
+                    UserProvidedCSS = "" // custom CSS defined in page header
+                };
+
+                html = csharpColourer.ProcessSourceCode(code, new HTMLEmitter(settings));
+            }
+            else
+
+            {
+                var formatter = new HtmlFormatter(StyleDictionary.DefaultLight);
+                html = formatter.GetHtmlString(code, language);
+            }
+
+            renderer.Write(html);
+        }
+
+        /// <inheritdoc />
+        public string ExtractCode(LeafBlock leafBlock)
+        {
+            var code = new StringBuilder();
+
+            // ReSharper disable once NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
+            var lines = leafBlock.Lines.Lines ?? [];
+            var totalLines = lines.Length;
+
+            for (var index = 0; index < totalLines; index++)
+            {
+                var line = lines[index];
+                var slice = line.Slice;
+
+                if (slice.Text == null)
+                {
+                    continue;
+                }
+
+                var lineText = slice.Text.Substring(slice.Start, slice.Length);
+
+                if (index > 0)
+                {
+                    code.AppendLine();
+                }
+
+                code.Append(lineText);
+            }
+
+            return code.ToString();
         }
     }
 
