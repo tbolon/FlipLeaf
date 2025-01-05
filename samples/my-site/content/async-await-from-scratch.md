@@ -79,6 +79,8 @@ for (int i = 0; i < 1000; i++)
 Console.ReadLine();
 ```
 
+![](async-await-from-scratch-01.gif)
+
 En écrivant ce code, par exemple sur une machine disposant de 12 processeurs logiques, donc avec supposons 12 threads pouvant s'exécuter en paralléle, je pourrais supposer voir s'afficher les nombres de 0 à 11 très vite, puis de 12 à 23, etc.
 
 En réalité, nous allons voir s'afficher uniquement le nombre 1000, sur 1000 lignes.
