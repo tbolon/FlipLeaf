@@ -139,7 +139,7 @@ static class MyThreadPool
 {
     public static void QueueUserWorkItem(Action action)
     {
-        // ...
+        // [...]
     }
 }
 ```
@@ -159,7 +159,7 @@ static class MyThreadPool
 
     public static void QueueUserWorkItem(Action action)
     {
-        // ...
+        // [...]
     }
 }
 ```
@@ -192,7 +192,7 @@ static class MyThreadPool
                     Action workItem = s_workItems.Take();
                     workItem();
                 }
-             }) { IsBackground = true /* */ }.Start();
+             }) { IsBackground = true }.Start();
         }
     }
 }

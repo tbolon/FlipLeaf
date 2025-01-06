@@ -123,6 +123,7 @@ namespace FlipLeaf
                 {
                     AddLineNumber = false,
                     UseIframe = false,
+                    Optimize = false, // désactivé car simplifie les trop classes CSS
                     UserProvidedCSS = "" // custom CSS defined in page header
                 };
 
