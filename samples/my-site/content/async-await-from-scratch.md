@@ -22,23 +22,23 @@ Attachez vos ceintures, c'est parti : nous nous téléportons plus de 10 ans dan
 
 Nous ne ferons pas attention aux performances.
 
-## La base : concurrence et asynchronisme
+## asynchronisme et concurrence
 
 Le premier concept fondamental à aborder lorsque l'on parle d'asynchronisme est la **concurrence**&nbsp;: vous démarrez une tâche qui peut se terminer immédiatement ou bien plus tard mais vous ne le savez pas. Vous l'avez simplement démarrée puis votre code continue d'effectuer d'autres traitements.
 
 Pendant ce temps la tâche que vous avez démarrée s'exécute et lance même peut-être d'autres traitements. Vous vous retrouvez avec plusieurs traitements qui s'exécutent en même temps.
 
-À la base de ce fonctionnement vous avez le *thread pool*, chargé de faire s'exécuter ces tâches chacune de leur côté.
+À la base de ce fonctionnement vous avez le *thread pool*, chargé de faire s'exécuter chacune de ces tâches.
 Donc l'une des premières tâches que nous allons devoir réaliser va consister à recréer un thread pool en .NET.
 
 Prenons l'exemple suivant :
 
 ```csharp
-for (int i = 0; i < 1000; i++)
+for (int i = 0; i < 100; i++)
 {
-    // cette ligne demande au thread pool de mettre en file d'attente un traitement
+    // 👇 cette ligne demande au thread pool de mettre en file d'attente un traitement
     ThreadPool.QueueUserWorkItem(delegate { /* traitement s'exécutant en fond */ });
-    // et immédiatement aprés, je peux effectuer un autre traitement
+    // 👇 et immédiatement aprés, je peux effectuer un autre traitement
 }
 
 Console.ReadLine();
@@ -54,13 +54,13 @@ La concurrence se produira lorsque le code qui s'exécute dans votre delegate s'
 ```csharp
 public void Button1_Click(object sender, EventArgs e)
 {
-    for (int i = 0; i < 1000; i++)
+    for (int i = 0; i < 100; i++)
     {
-        // cette ligne demande au thread pool de mettre en file d'attente un traitement
-        ThreadPool.QueueUserWorkItem(delegate {
-            Control.BeginInvoke(this, new MethodInvoker(delegate { Console.WriteLine(i); }, null);
+        var value = i;
+        ThreadPool.QueueUserWorkItem(delegate {            
+            // 👇 demande au thread principal (UI) d'effectuer ce traitement
+            Control.BeginInvoke(this, new MethodInvoker(delegate { Console.WriteLine(value); }, null));
         });
-        // et immédiatement aprés, je peux effectuer un autre traitement
     }
 }
 ```
@@ -68,9 +68,28 @@ public void Button1_Click(object sender, EventArgs e)
 Donc vous ne pouvez pas avoir de concurrence sans asynchronisme, alors que vous pouvez avoir de l'asynchronisme sans concurrence.
 
 ```csharp
-for (int i = 0; i < 1000; i++)
+for (int i = 0; i < 100; i++)
 {
-    // cette ligne demande au thread pool de mettre en file d'attente un traitement
+    var value = i;
+    ThreadPool.QueueUserWorkItem(delegate {
+        Console.WriteLine(value);
+        Thread.Sleep(1000);
+    });
+}
+Console.ReadLine();
+```
+
+En écrivant ce code sur une machine disposant par exemple de 8 processeurs logiques, donc avec supposons 8 threads pouvant s'exécuter en paralléle, nous voyons s'afficher les nombres de 0 à 7 très vite en ordre aléatoire, puis de 8 à 15, etc.
+
+## Portée et capture de variable
+
+Retour sur un point qui peut sembler évident : l'importance de stocker la valeur de `i` dans une variable locale.
+Si nous modifions le code pour revenir à une version d'apparence plus simple, où nous utilisons directement `i` dans l'appel de `Console.WriteLine()` :
+
+```csharp
+for (int i = 0; i < 100; i++)
+{
+    //var value = i; 👈 on ne capture plus la variable i
     ThreadPool.QueueUserWorkItem(delegate {
         Console.WriteLine(i);
         Thread.Sleep(1000);
@@ -79,23 +98,25 @@ for (int i = 0; i < 1000; i++)
 Console.ReadLine();
 ```
 
+Voici le résultat affiché :
+
 ![](async-await-from-scratch-01.gif)
 
-En écrivant ce code, par exemple sur une machine disposant de 12 processeurs logiques, donc avec supposons 12 threads pouvant s'exécuter en paralléle, je pourrais supposer voir s'afficher les nombres de 0 à 11 très vite, puis de 12 à 23, etc.
+Uniquement le nombre 100, sur 100 lignes.
 
-En réalité, nous allons voir s'afficher uniquement le nombre 1000, sur 1000 lignes.
-Car en réalité ce que ce code fait réellement c'est de mettre en file d'attente 1000 traitements d'affichage de la valeur de `i`.
-Et le temps que ces traitements se lançent réellement, la variable `i` a été incrémentée pour valoir 1000.
+Car en réalité ce code ne fait réellement que mettre en file d'attente 1000 traitements d'affichage de la valeur de `i`.
+Et le temps que ces traitements se lançent réellement, la variable `i` a été incrémentée pour valoir 100.
 
-Cela révèle aussi un problème de méconnaissances lié aux closures (portées). En effet, lorsque l'on écrit un delegate, qui se réfère à une variable déclarée en dehors de la portée, c'est une référence vers cette variable qui est utilisée : tous les traitements se réfèrent donc à la même variable qui est incrémentée au fur et à mesure.
+Ce type d'erreur vient d'un problème de méconnaissance lié aux closures (portées). En effet, lorsque l'on écrit un `delegate`, qui se réfère à une variable déclarée en dehors de la portée, c'est une **référence** vers cette variable qui est utilisée : tous les traitements se réfèrent donc à la même variable qui est incrémentée au fur et à mesure.
 
-Pour obtenir une copie de la variable dédiée au traitement avec la valeur au moment précis où la tâche a été programmer, il faut donc passer par une variable intermédiaire :
+C'est ce que le compilateur fait par défaut pour que le comportement soit le plus logique, surtout lorsque des variables de type références (classes) sont utilisées : on s'attend à manipuler l'objet de la portée parente, et non une "copie".
 
+Pour obtenir une copie de la variable dédiée au traitement avec la valeur au moment précis où la tâche a été programmer, il faut donc passer par une variable intermédiaire, comme dans notre premier exemple :
 
 ```csharp
-for (int i = 0; i < 1000; i++)
+for (int i = 0; i < 100; i++)
 {
-    int capturedVariable = i; // création d'une variable locale pour capturer la valeur courante de i
+    int capturedVariable = i; // 👈 création d'une variable locale pour capturer la valeur courante de i
     ThreadPool.QueueUserWorkItem(delegate {
         Console.WriteLine(capturedVariable);
         Thread.Sleep(1000);
@@ -104,12 +125,12 @@ for (int i = 0; i < 1000; i++)
 Console.ReadLine();
 ```
 
-Nous aurons bien le résultat attendu qui s'affiche, à savoir tous les nombres s'incrémentant de 0 à 1000.
+Nous aurons bien le résultat attendu qui s'affiche, à savoir tous les nombres s'incrémentant de 0 à 100.
 
 ## Créer notre propre ThreadPool
 
-Dans l'exemple ci-dessous, nous avons utilisé le ThreadPool réel existant en .NET.
-Nous allons donc maintenant chercher à créer notre propre version du thread pool.
+Dans les exemples précedents nous avons utilisé le `ThreadPool` réel existant fourni par .NET.
+Nous allons maintenant créer notre propre version.
 
 La signature de notre classe va ressembler à celle du thread pool officiel :
 
@@ -352,12 +373,17 @@ Par exemple le fait de savoir si elle est terminée ou non, via une propriété 
 
 Il nous faut donc aussi des méthodes pour indiquer lorsque cette tâche s'est terminée, que ce soit correctement (`SetResult()`), ou avec une erreur (`SetException(Exception ex)`).
 
+Nous souhaitons aussi sans doute pouvoir attendre que la tâche se termine, donc une méthode `Wait()` semble utile.
+Mais peut être préférons nous être prévenus lorsque la tâche se termine, via un *callback* que nous pourrons renseigner sur la tâche après l'avoir démarrée : ce sera le rôle d'une méthode `ContinueWith(delegate)` que nous allons définir.
+
 ```csharp
 public class MyTask
 {
     public bool IsCompleted { get; }
     public void SetResult() { }
     public void SetException(Exception exception) { }
+    public void Wait() { }
+    public void ContinueWith(Action action) { }
 }
 ```
 
@@ -365,8 +391,133 @@ public class MyTask
 Dans le runtime .NET, cette structure est en réalité découpée en deux classes : Task et TaskCompletionSource. L'objectif est de distinguer la partie uniquement observable (avec `IsCompleted`) de la partie modifiable, ceci afin d'éviter que l'observateur puisse marquer la tâche comme terminée alors qu'il n'en est pas responsable.
 :::
 
+Maintenant que la "surface" de la tâche est définie il nous faut définit les informations stockées au sein de la tâche.
 
-**t:13m50s**
+```csharp
+public class MyTask
+{
+    private bool _completed;           // état terminé stocké via SetResult(...) et SetException(...)
+    private Exception? _exception;     // exception stockée via SetException(...)
+    private Action? _continuation;     // action effectuer suite à l'appel de ContinueWith(...)
+    private ExecutionContext _context; // utile comme vu précemment pour propager le contexte local
+}
+```
+
+L'implémentation de IsCompleted semble trivial si elle devait simplement renvoyer _isCompleted, mais en réalité elle va être plus complexe, pour une raison simple : MyTask doit être implicitement **thread safe** car il sera utilisé par des threads différents.
+
+Pour le cas de IsCompleted, nous devons donc nous assurer que cette variable sera disponible uniquement lorsque l'état *completed* sera totalement atteint.
+
+Dans notre cas, cela consistera à utiliser un verrou d'accès exclusif autour de l'accès à la propriété :
+
+```csharp
+public class MyTask
+{
+    private bool _completed;
+
+    public bool IsCompleted
+    {
+        get
+        {
+            lock (this)
+            {
+                return _completed;
+            }
+        }
+    }
+}
+```
+
+Cela prendra plus de sens lorsque nous allons implémenter la méthode pour "terminer" la tâche, ce qui revient à implémenter une méthode partagée entre `SetCompleted()` et `SetException()`
+
+```csharp
+public class MyTask
+{
+    // [...]
+
+    public void SetCompleted() => Complete(null);
+
+    public void SetException(Exception exception) => Complete(exception);
+
+    public void Complete(Exception exception)
+    {
+        lock (this)
+        {
+            // on se protège contre un appel alors que la tâche est déjà marquée comme terminée
+            if(_completed) throw new InvalidOperationException("Already completed");
+
+            // on stocke les éventuelles valeurs
+            _completed = true;
+            _exception = exception;
+
+            // on s'occupe de lancer la tâche qui s'est inscrite...
+            if (_continuation is not null)
+            {  
+                // ... en programmant son exécution 
+                MyThreadPool.QueueUserWorkItem(delegate
+                {
+                    if (_context is null)
+                    {
+                        // cas simple : pas de contexte capturé, on invoque directement l'action
+                        _continuation();
+                    }
+                    else
+                    {
+                        // cas plus complexe : on revient sur notre exemple précédent pour exécuter l'action dans son propre contexte
+                        ExecutionContext.Run(_context, (object? state) => ((Action)state!).Invoke(), _continuation);
+                    }
+                });
+            }
+        }
+    }
+}
+```
+
+Il nous reste deux méthodes à implémenter, d'abord `ContinueWith(...)` qui est relativement simple :
+
+```csharp
+public class MyTask
+{
+    // [...]
+
+    public void ContinueWith(Action action)
+    {
+        lock (this)
+        {
+            if (_completed)
+            {
+                // cas simple : si déjà terminée on programme immédiatement l'action
+                // note : le contexte est automatiquement capturé par QueueUserWorkItem(...)
+                MyThreadPool.QueueUserWorkItem(action);
+            }
+            else
+            {
+                // cas différé : on stocke l'action à exécuter et on capture le contexte
+                _continuation = action;
+                _context = ExecutionContext.Capture();
+            }
+        }
+    }
+}
+```
+
+### Disgression #2 : l'usage de lock(this)
+
+Il est souvent indiqué que `lock (this)` ne doit pas être utilisé, mais est-ce réellement dangereux ici ? Serait-ce acceptable pour du code bas niveau ?
+
+En fait cela dépend surtout de l'exposition de l'objet représenté par `this`.
+Dans le cas présent, c'est réellement dangereux : `this` désigne l'instance de `MyTask`, qui est publique et partagée avec tous ceux qui vont interagir
+avec le `ThreadPool`. Alors que votre verrou est réellement un détail d'implémentation privé de votre tâche.
+
+Or, le fait d'utiliser l'instance de `MyTask` permet à n'importe quel utilisateur de votre code de créer un `lock(myTask)`
+
+Il y a en réalité deux aspects dans cette question :
+
+1. Est-ce qu'il faut se méfier de l'utilisation de `lock(...)` ?
+2. Pourquoi est-il déconseillé d'utiliser `lock(this)` ? 
+
+P
+
+**t:34m39s**
 
 
 ## Bibliographies

@@ -118,7 +118,6 @@ namespace FlipLeaf
             string html;
             if (language.Id == LanguageId.CSharp)
             {
-                Console.WriteLine("Using CsharpColourer");
                 var csharpColourer = new CsharpColourer();
                 var settings = new HTMLEmitterSettings
                 {
