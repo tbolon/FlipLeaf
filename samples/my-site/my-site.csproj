@@ -1,5 +1,0 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="C:\code\perso\FlipLeaf\src\FlipLeaf.Sdk\Sdk\Sdk.props" />
-
-  <Import Project="C:\code\perso\FlipLeaf\src\FlipLeaf.Sdk\Sdk\Sdk.targets" />
-</Project>

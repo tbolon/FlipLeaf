@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\FlipLeaf.Engine\FlipLeaf.Engine.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\..\FlipLeaf.Engine\FlipLeaf.Engine.csproj" />
   </ItemGroup>
 
   <ItemGroup>
