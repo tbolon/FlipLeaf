@@ -14,7 +14,7 @@ namespace FlipLeaf
         public Dictionary<string, object?> Properties { get; } = [];
 
         /// <summary>
-        /// Name of the file, including its extension.
+        /// Name of the file, including its extension, relative to the project root.
         /// </summary>
         public string Name { get; init; }
 
@@ -23,6 +23,9 @@ namespace FlipLeaf
         /// </summary>
         public string RelativePath { get; init; }
 
+        /// <summary>
+        /// Full path of the file.
+        /// </summary>
         public string FullPath { get; init; }
 
         public string Extension { get; init; }
