@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.Build.NoTargets/3.7.56">
   <PropertyGroup>
-    <TargetFrameworks>net472;netstandard2.0</TargetFrameworks>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <Description>Provides MSBuild traversal logic.</Description>
     <PackageTags>MSBuild MSBuildSdk traversal dirs</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
