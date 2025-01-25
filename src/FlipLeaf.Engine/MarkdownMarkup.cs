@@ -220,7 +220,7 @@ namespace FlipLeaf
 
                 if (!File.Exists(_csxPath))
                 {
-                    Console.WriteLine($"{_csxPath} missing !!");
+                    //Console.WriteLine($"{_csxPath} missing !!");
                     _csxPath = null;
                     return;
                 }
