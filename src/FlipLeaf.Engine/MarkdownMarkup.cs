@@ -1,4 +1,5 @@
-﻿using Markdig;
+﻿using CsharpToColouredHTML.Core;
+using Markdig;
 using Markdig.Extensions.CustomContainers;
 using Markdig.Parsers;
 using Markdig.Renderers;
@@ -28,7 +29,7 @@ namespace FlipLeaf
             builder.Extensions.AddIfNotAlready<SyntaxHighlightCodeBlockExtension>();
 
             // :::code renderer
-            builder.Extensions.AddIfNotAlready<SnippedCodeBlockExtension>();
+            builder.Extensions.AddIfNotAlready<SnippetCodeBlockExtension>();
 
             _pipeline = builder.Build();
         }
@@ -58,6 +59,33 @@ namespace FlipLeaf
         }
 
         public SiteItem Item { get; }
+    }
+
+    internal sealed class CSharpRenderer
+    {
+        private readonly CsharpColourer _csharpColourer;
+
+        private readonly HTMLEmitter _htmlEmitter;
+
+        public CSharpRenderer()
+        {
+            _csharpColourer = new CsharpColourer();
+
+            var settings = new HTMLEmitterSettings
+            {
+                AddLineNumber = false,
+                UseIframe = false,
+                Optimize = false, // désactivé car simplifie les trop classes CSS
+                UserProvidedCSS = "" // custom CSS defined in page header
+            };
+
+            _htmlEmitter = new HTMLEmitter(settings);
+        }
+
+        public string RenderCSharp(string code)
+        {
+            return _csharpColourer.ProcessSourceCode(code, _htmlEmitter);
+        }
     }
 
     /// <summary>
@@ -92,13 +120,24 @@ namespace FlipLeaf
             htmlRenderer.ObjectRenderers.AddIfNotAlready(new ColorCodeBlockRenderer(codeBlockRenderer));
         }
 
-        internal sealed class ColorCodeBlockRenderer(CodeBlockRenderer fallback) : HtmlObjectRenderer<CodeBlock>
+        internal sealed class ColorCodeBlockRenderer : HtmlObjectRenderer<CodeBlock>
         {
+            private readonly CodeBlockRenderer _fallback;
+            private readonly CSharpRenderer _csharpRenderer;
+
+            public ColorCodeBlockRenderer(CodeBlockRenderer fallback)
+            {
+                _fallback = fallback;
+                _csharpRenderer = new CSharpRenderer();
+
+            }
+
             protected override void Write(HtmlRenderer renderer, CodeBlock codeBlock)
             {
+                using var _ = Bench.Start("ColorCodeBlockRenderer.Write");
                 if (codeBlock is not FencedCodeBlock fencedCodeBlock || codeBlock.Parser is not FencedCodeBlockParser fencedCodeBlockParser)
                 {
-                    fallback.Write(renderer, codeBlock);
+                    _fallback.Write(renderer, codeBlock);
                     return;
                 }
 
@@ -108,7 +147,7 @@ namespace FlipLeaf
                 var language = string.IsNullOrWhiteSpace(languageId) ? null : ColorCode.Languages.FindById(languageId);
                 if (language is null)
                 {
-                    fallback.Write(renderer, codeBlock);
+                    _fallback.Write(renderer, codeBlock);
                     return;
                 }
 
@@ -118,30 +157,18 @@ namespace FlipLeaf
                 if (language.Id == ColorCode.Common.LanguageId.CSharp)
                 {
                     // for C# we use CsharpToColouredHTML
-                    html = RenderCSharp(code);
+                    using var __ = Bench.Start("ColorCodeBlockRenderer.RenderCSharp");
+                    html = _csharpRenderer.RenderCSharp(code);
                 }
                 else
                 {
                     // for the other cases let's use ColorCore
+                    using var __ = Bench.Start("ColorCodeBlockRenderer.ColorCode.GetHtmlString");
                     var formatter = new ColorCode.HtmlFormatter(ColorCode.Styling.StyleDictionary.DefaultLight);
                     html = formatter.GetHtmlString(code, language);
                 }
 
                 renderer.Write(html);
-            }
-
-            public static string RenderCSharp(string code)
-            {
-                var csharpColourer = new CsharpToColouredHTML.Core.CsharpColourer();
-                var settings = new CsharpToColouredHTML.Core.HTMLEmitterSettings
-                {
-                    AddLineNumber = false,
-                    UseIframe = false,
-                    Optimize = false, // désactivé car simplifie les trop classes CSS
-                    UserProvidedCSS = "" // custom CSS defined in page header
-                };
-
-                return csharpColourer.ProcessSourceCode(code, new CsharpToColouredHTML.Core.HTMLEmitter(settings));
             }
 
             public static string ExtractCode(LeafBlock leafBlock)
@@ -174,17 +201,18 @@ namespace FlipLeaf
         }
     }
 
-    public sealed class SnippedCodeBlockExtension : IMarkdownExtension
+    /// <summary>
+    /// Extension to import code blocks from referenced snippets.
+    /// </summary>
+    public sealed partial class SnippetCodeBlockExtension : IMarkdownExtension
     {
-        public SnippedCodeBlockExtension()
+        public SnippetCodeBlockExtension()
         {
-            Console.WriteLine("new Extension");
         }
 
         /// <inheritdoc/>
         public void Setup(MarkdownPipelineBuilder pipeline)
         {
-            var parser = pipeline.BlockParsers.FindExact<CustomContainerParser>();
         }
 
         /// <inheritdoc/>
@@ -202,15 +230,18 @@ namespace FlipLeaf
             htmlRenderer.ObjectRenderers.Add(new CodeCustomContainerRenderer(htmlRenderer.Item, current));
         }
 
-        public class CodeCustomContainerRenderer : HtmlObjectRenderer<CustomContainer>
+        public partial class CodeCustomContainerRenderer : HtmlObjectRenderer<CustomContainer>
         {
             private readonly HtmlCustomContainerRenderer _default;
             private readonly SiteItem _item;
             private readonly string? _csxPath;
+
+            private readonly CSharpRenderer _csharpRenderer = new ();
             private Dictionary<string, string>? _dict;
 
             public CodeCustomContainerRenderer(SiteItem item, HtmlCustomContainerRenderer? defaultRenderer)
             {
+                using var _ = Bench.Start("CodeCustomContainerRenderer.ctor");
                 _default = defaultRenderer ?? new();
                 _item = item;
 
@@ -218,22 +249,20 @@ namespace FlipLeaf
 
                 if (!File.Exists(_csxPath))
                 {
-                    //Console.WriteLine($"{_csxPath} missing !!");
                     _csxPath = null;
                     return;
                 }
 
                 var csx = File.ReadAllText(_csxPath);
 
-                var startMatches = Regex.Matches(csx, @"^[\t ]*(// )?#(?<key>region)\s*(?<name>[^\r\n]+)\r?$", RegexOptions.CultureInvariant | RegexOptions.Multiline | RegexOptions.ExplicitCapture);
-                var endMatches = Regex.Matches(csx, @"^[\t ]*(// )?#(?<key>endregion)\r?$", RegexOptions.CultureInvariant | RegexOptions.Multiline | RegexOptions.ExplicitCapture);
+                var startMatches = RegionStartRegex().Matches(csx);
+                var endMatches = RegionEndRegex().Matches(csx);
 
                 var s = new Stack<(int, string)>();
                 var ranges = new List<(string, int, int)>();
 
                 foreach (Match match in startMatches.Cast<Match>().Concat(endMatches.Cast<Match>()).OrderBy(m => m.Index))
                 {
-                    Console.WriteLine($"Match: «{match.Value.TrimEnd()}»");
                     var isStart = match.Groups["key"].Value == "region";
                     if (isStart)
                     {
@@ -249,25 +278,14 @@ namespace FlipLeaf
                     }
                 }
 
-                _dict = new Dictionary<string, string>();
+                _dict = [];
 
                 foreach ((var name, var i, var j) in ranges)
                 {
-                    var block = csx.Substring(i, j - i).Trim('\r', '\n');
-                    Console.WriteLine($"{i},{j}");
-                    Console.WriteLine("---");
-                    Console.WriteLine(block);
-                    Console.WriteLine("---");
-
+                    var block = csx[i..j].Trim('\r', '\n');
                     var lines = block.Split('\n').Select(l => l.TrimEnd());
                     var indent = lines.Where(l => !string.IsNullOrEmpty(l)).Min(l => l.TakeWhile(c => c == ' ').Count());
-                    Console.WriteLine($"indent : {indent}");
-                    _dict[name] = string.Join("\n", lines.Select(l => l.Length > indent ? l.Substring(indent) : l));
-
-                    Console.WriteLine($"{i},{j}");
-                    Console.WriteLine("---");
-                    Console.WriteLine(_dict[name]);
-                    Console.WriteLine("---");
+                    _dict[name] = string.Join("\n", lines.Select(l => l.Length > indent ? l[indent..] : l));
                 }
             }
 
@@ -309,31 +327,16 @@ namespace FlipLeaf
                     return;
                 }
 
-                // if(script == null)
-                // {
-
-                // }
-
-                var html = SyntaxHighlightCodeBlockExtension.ColorCodeBlockRenderer.RenderCSharp(script);
-
+                using var _ = Bench.Start("CodeCustomContainerRenderer.RenderCSharp");
+                var html = _csharpRenderer.RenderCSharp(script);
                 renderer.Write(html);
-
-                // renderer.EnsureLine();
-                // if (renderer.EnableHtmlForBlock)
-                // {
-                //     renderer.Write("<div").WriteAttributes(obj).Write('>');
-                //     renderer.Write("<pre><code>");
-                // }
-
-                // // We don't escape a CustomContainer
-                // renderer.WriteChildren(obj);
-
-                // if (renderer.EnableHtmlForBlock)
-                // {
-                //     renderer.Write("</code></pre>");
-                //     renderer.WriteLine("</div>");
-                // }
             }
+
+            [GeneratedRegex(@"^[\t ]*(// )?#(?<key>region)\s*(?<name>[^\r\n]+)\r?$", RegexOptions.Multiline | RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant)]
+            private static partial Regex RegionStartRegex();
+
+            [GeneratedRegex(@"^[\t ]*(// )?#(?<key>endregion)\r?$", RegexOptions.Multiline | RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant)]
+            private static partial Regex RegionEndRegex();
         }
     }
 }

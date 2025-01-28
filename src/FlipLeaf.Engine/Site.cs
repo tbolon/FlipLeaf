@@ -23,11 +23,21 @@ public class SiteOptions
     public string? RootDir { get; set; }
 }
 
+public delegate Task<bool> ProcessDelegate(SiteContext context);
+
+public sealed class SiteContext
+{
+    public Site Site { get; }
+
+    public SiteItem Item { get; }
+}
 
 public sealed class Site : IHost, ISite
 {
     private readonly IHost _host;
     private readonly Project _project;
+
+    private readonly List<Func<SiteItem, Task<bool>>> _pipelines = new List<Func<SiteItem, Task<bool>>>();
 
     public Site(IHost host, SiteOptions options)
     {
@@ -38,6 +48,11 @@ public sealed class Site : IHost, ISite
     public IServiceProvider Services => _host.Services;
 
     public IProject Project => _project;
+
+    public void Add(Func<SiteItem, Task<bool>> task)
+    {
+        _pipelines.Add(task);
+    }
 
     public void Dispose() => _host.Dispose();
 
@@ -55,14 +70,16 @@ public sealed class Site : IHost, ISite
         return _host.RunAsync(cancellationToken);
     }
 
-    /// <summary>
-    /// Start the website generation.
-    /// </summary>
+    /// <summary>Start the website generation.</summary>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         return _host.StartAsync(cancellationToken);
     }
 
-    public Task StopAsync(CancellationToken cancellationToken = default) => _host.StopAsync(cancellationToken);
+    /// <summary>Stop the website.</summary>
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        return _host.StopAsync(cancellationToken);
+    }
 }
 
