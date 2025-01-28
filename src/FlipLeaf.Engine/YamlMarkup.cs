@@ -7,10 +7,10 @@ namespace FlipLeaf
 {
     public interface IYamlMarkup
     {
-        HeaderFieldDictionary ParseHeader(string content, out string newContent);
+        (string content, HeaderFieldDictionary headers) ParseHeader(string content);
     }
 
-    public class YamlMarkup
+    public class YamlMarkup : IYamlMarkup
     {
         private readonly IDeserializer _deserializer;
 

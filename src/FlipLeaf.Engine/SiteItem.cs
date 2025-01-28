@@ -1,8 +1,8 @@
 namespace FlipLeaf
 {
-    public class ProjectItem
+    public class SiteItem
     {
-        public ProjectItem(string rootDir, string relativePath)
+        public SiteItem(string rootDir, string relativePath)
         {
             Name = Path.GetFileName(relativePath);
             RelativePath = relativePath.Replace('\\', '/');
@@ -34,7 +34,7 @@ namespace FlipLeaf
 
         public override string ToString() => RelativePath;
 
-        public override bool Equals(object? obj) => obj is ProjectItem other && string.Equals(RelativePath, other.RelativePath, StringComparison.Ordinal);
+        public override bool Equals(object? obj) => obj is SiteItem other && string.Equals(RelativePath, other.RelativePath, StringComparison.Ordinal);
 
         public override int GetHashCode() => RelativePath.GetHashCode();
 

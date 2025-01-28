@@ -11,7 +11,7 @@ namespace FlipLeaf
 {
     public interface IMarkdownMarkup
     {
-        string Render(string markdown);
+        string Render(string markdown, SiteItem item);
     };
 
     public sealed class MarkdownMarkup : IMarkdownMarkup
@@ -33,9 +33,7 @@ namespace FlipLeaf
             _pipeline = builder.Build();
         }
 
-        public string Render(string markdown) => Render(markdown, null!);
-
-        public string Render(string markdown, ProjectItem item)
+        public string Render(string markdown, SiteItem item)
         {
             using (var writer = new StringWriter())
             {
@@ -54,12 +52,12 @@ namespace FlipLeaf
 
     internal sealed class FlipLeafPageHtmlRender : HtmlRenderer
     {
-        public FlipLeafPageHtmlRender(TextWriter writer, ProjectItem item) : base(writer)
+        public FlipLeafPageHtmlRender(TextWriter writer, SiteItem item) : base(writer)
         {
             Item = item;
         }
 
-        public ProjectItem Item { get; }
+        public SiteItem Item { get; }
     }
 
     /// <summary>
@@ -207,11 +205,11 @@ namespace FlipLeaf
         public class CodeCustomContainerRenderer : HtmlObjectRenderer<CustomContainer>
         {
             private readonly HtmlCustomContainerRenderer _default;
-            private readonly ProjectItem _item;
+            private readonly SiteItem _item;
             private readonly string? _csxPath;
             private Dictionary<string, string>? _dict;
 
-            public CodeCustomContainerRenderer(ProjectItem item, HtmlCustomContainerRenderer? defaultRenderer)
+            public CodeCustomContainerRenderer(SiteItem item, HtmlCustomContainerRenderer? defaultRenderer)
             {
                 _default = defaultRenderer ?? new();
                 _item = item;

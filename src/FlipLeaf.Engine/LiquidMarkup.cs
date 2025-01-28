@@ -6,19 +6,34 @@ using Microsoft.Extensions.Primitives;
 
 namespace FlipLeaf
 {
-    public class LiquidMarkup
+    public interface ILiquidMarkup
+    {
+        void LoadTemplates(IProject project);
+
+        ValueTask<(string content, TemplateContext templateContext)> RenderAsync(string content, HeaderFieldDictionary headers);
+
+        ValueTask<string> ApplyLayoutAsync(string source, TemplateContext sourceContext);
+    }
+
+    public class LiquidMarkup : ILiquidMarkup, IWarmup
     {
         private readonly Dictionary<string, LiquidLayout> _layouts = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, LiquidInclude> _includes = new(StringComparer.OrdinalIgnoreCase);
         private readonly FlipLeafFileProvider _fileProvider;
         private readonly string _baseUrl;
-        private readonly YamlMarkup _yaml;
+        private readonly IYamlMarkup _yaml;
 
-        public LiquidMarkup(YamlMarkup yaml)
+        public LiquidMarkup(IYamlMarkup yaml)
         {
             _baseUrl = ".";
             _fileProvider = new FlipLeafFileProvider(_includes);
             _yaml = yaml;
+        }
+
+        public Task Warmup(ISite site, CancellationToken cancellation)
+        {
+            LoadTemplates(site.Project);
+            return Task.CompletedTask;
         }
 
         public void LoadTemplates(IProject project)
@@ -93,7 +108,7 @@ namespace FlipLeaf
             var pageTemplate = parser.Parse(content);
 
             // prepare context
-           var templateContext = CreateTemplateContext();
+            var templateContext = CreateTemplateContext();
             templateContext.SetValue(KnownVariables.Page, headers);
             //templateContext.SetValue(KnownVariables.Site, website);
 
@@ -169,11 +184,11 @@ namespace FlipLeaf
                 : StringFilters.Prepend(input, new FilterArguments(new StringValue(_baseUrl)), context);
         }
 
-        public class LiquidFile(ProjectItem file)
+        public class LiquidFile(SiteItem file)
         {
             public virtual string Name => File.RelativePath;
 
-            protected ProjectItem File { get; } = file;
+            protected SiteItem File { get; } = file;
 
             public override int GetHashCode() => File.GetHashCode();
 
@@ -184,14 +199,14 @@ namespace FlipLeaf
             };
         }
 
-        public class LiquidInclude(ProjectItem file, byte[] content) : LiquidFile(file)
+        public class LiquidInclude(SiteItem file, byte[] content) : LiquidFile(file)
         {
-            public new ProjectItem File => base.File;
+            public new SiteItem File => base.File;
 
             public byte[] Content { get; } = content;
         }
 
-        public class LiquidLayout(ProjectItem file, HeaderFieldDictionary yamlHeader, IFluidTemplate template) : LiquidFile(file)
+        public class LiquidLayout(SiteItem file, HeaderFieldDictionary yamlHeader, IFluidTemplate template) : LiquidFile(file)
         {
 
             public override string Name { get; } = Path.GetFileNameWithoutExtension(file.Name);
