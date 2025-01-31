@@ -9,10 +9,16 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 
+    <FlipLeafVersion Condition="'$(FlipLeafVersion)' == ''">1.0.0-alpha-15</FlipLeafVersion>
+
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(FlipLeafSdkProjectRef)' == 'True'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\..\FlipLeaf.Engine\FlipLeaf.Engine.csproj" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(FlipLeafSdkProjectRef)' != 'True'">
+    <PackageReference Include="FlipLeaf.Engine" Version="1.0.0-alpha-*" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.Build.NoTargets/3.7.56">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Description>Provides MSBuild traversal logic.</Description>
-    <PackageTags>MSBuild MSBuildSdk traversal dirs</PackageTags>
+    <Description>Provides all basic features for a FlipLeaf SSG project.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageType>MSBuildSdk</PackageType>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <VersionSuffix>alpha-01</VersionSuffix>  
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsPackable)' == 'true'">

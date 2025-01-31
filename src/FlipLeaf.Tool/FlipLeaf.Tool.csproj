@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Title>FlipLeaf dotnet tool</Title>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net9.0;net8.0</TargetFrameworks>
+    <VersionSuffix>alpha-02</VersionSuffix>
+    <ImplicitUsings>true</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>flipleaf</ToolCommandName>
+  </PropertyGroup>
+</Project>

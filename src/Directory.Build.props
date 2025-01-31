@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <Authors>Thomas Bolon</Authors>
+    <ProjectUrl>https://github.com/tbolon/FlipLeaf</ProjectUrl>
+    <RepositoryUrl>https://github.com/tbolon/FlipLeaf.git</RepositoryUrl>
+    <PackageIcon>icon.png</PackageIcon>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageOutputPath>../../nupkg</PackageOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../gfx/leaves.png" Pack="true" PackagePath="\icon.png" />
+  </ItemGroup>
+</Project>
