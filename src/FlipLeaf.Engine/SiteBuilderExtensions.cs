@@ -13,6 +13,7 @@ public static class SiteBuilderExtensions
     public static SiteBuilder AddLiquid(this SiteBuilder @this)
     {
         @this.Services.AddSingleton<ILiquidMarkup, LiquidMarkup>();
+        @this.Services.AddSingleton(l => (IWarmup)l.GetRequiredService<ILiquidMarkup>());
         return @this;
     }
 
