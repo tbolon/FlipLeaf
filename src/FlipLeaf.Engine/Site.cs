@@ -4,12 +4,19 @@ using Microsoft.Extensions.Hosting;
 
 namespace FlipLeaf;
 
-
 public delegate Task ProcessDelegate(LeafContext context);
 
 public interface ISite
 {
+    /// <summary>
+    /// Absolute path to the root directory for the site.
+    /// </summary>
     string RootDir { get; }
+
+    /// <summary>
+    /// Absolute path to the directory where the output items must be written.
+    /// </summary>
+    string OutDir { get; }
 
     IReadOnlyList<Leaf> Layouts { get; }
 
@@ -34,8 +41,8 @@ public sealed class Site : IHost, ISite
     public Site(IHost host, SiteOptions options)
     {
         _host = host;
-        RootDir = Path.GetFullPath(options.RootDir ?? Environment.CurrentDirectory);
-        OutDir = Path.Combine(RootDir, "out");
+        RootDir = Path.GetFullPath(options.ContentDir ?? Environment.CurrentDirectory);
+        OutDir = Path.Combine(RootDir, KnownFolders.OutDir);
         if (!Directory.Exists(OutDir))
             Directory.CreateDirectory(OutDir);
     }
@@ -56,7 +63,7 @@ public sealed class Site : IHost, ISite
     {
         foreach (var filePath in Directory.GetFiles(RootDir, "*.*", SearchOption.AllDirectories))
         {
-            var relativePath = filePath.Substring(RootDir.Length + 1);
+            var relativePath = filePath[(RootDir.Length + 1)..];
             var firstDirName = string.Empty;
             var i = relativePath.IndexOf(Path.DirectorySeparatorChar);
             if (i != -1)
@@ -66,15 +73,15 @@ public sealed class Site : IHost, ISite
 
             switch (firstDirName.ToLowerInvariant())
             {
-                case "layouts":
+                case KnownFolders.LayoutsDir:
                     _layouts.Add(item);
                     break;
 
-                case "content":
+                case KnownFolders.ContentDir:
                     _content.Add(item);
                     break;
 
-                case "includes":
+                case KnownFolders.IncludesDir:
                     _includes.Add(item);
                     break;
             }
@@ -146,7 +153,7 @@ public sealed class Site : IHost, ISite
 
     public async Task RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
-        if (args.FirstOrDefault() == "watch")
+        if (args.FirstOrDefault() == KnownVerbs.WatchVerb)
         {
             await this.RunAsync(cancellationToken);
         }

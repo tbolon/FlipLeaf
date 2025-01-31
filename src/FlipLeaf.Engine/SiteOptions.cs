@@ -6,5 +6,5 @@ public class SiteOptions
     /// Path where the site content is located.
     /// Defaults to "./content".
     /// </summary>
-    public string? RootDir { get; set; }
+    public string? ContentDir { get; set; }
 }

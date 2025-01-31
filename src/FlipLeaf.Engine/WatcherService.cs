@@ -37,7 +37,7 @@ public sealed class WatcherService : IHostedService
     private void OnChanged(object s, FileSystemEventArgs e)
     {
         if (e.Name == null) return;
-        if (e.Name.StartsWith("out")) return;
+        if (e.Name.StartsWith(KnownFolders.OutDir)) return;
         if (e.Name.StartsWith('.')) return;
         Console.WriteLine($"📝 {e.Name} changed");
 
@@ -71,7 +71,7 @@ public sealed class WatcherService : IHostedService
         name = name[(i + 1)..];
         switch (folder)
         {
-            case "content":
+            case KnownFolders.ContentDir:
                 var item = _site.Content.FirstOrDefault(i => i.Name == name);
                 if (item != null)
                 {
@@ -79,8 +79,8 @@ public sealed class WatcherService : IHostedService
                 }
                 break;
 
-            case "includes":
-            case "layouts":
+            case KnownFolders.IncludesDir:
+            case KnownFolders.LayoutsDir:
                 _liquid.LoadTemplates(_site);
                 await _site.GenerateAll();
                 break;

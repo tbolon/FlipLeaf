@@ -29,10 +29,10 @@ public sealed class SiteBuilder
 
         siteBuilder.Services.AddOptions().Configure<SiteOptions>(options =>
         {
-            options.RootDir = DetectContentRootPath(siteBuilder.HostBuilder.Environment.ContentRootPath ?? Environment.CurrentDirectory);
+            options.ContentDir = DetectContentRootPath(siteBuilder.HostBuilder.Environment.ContentRootPath ?? Environment.CurrentDirectory);
         });
 
-        if (settings.Args?.FirstOrDefault() == "watch")
+        if (settings.Args?.FirstOrDefault() == KnownVerbs.WatchVerb)
         {
             siteBuilder.Services.AddHostedService<WatcherService>();
             siteBuilder.Services.AddSingleton<IHostLifetime, ConsoleLifetime>();
@@ -46,10 +46,10 @@ public sealed class SiteBuilder
     /// </summary>
     public static string DetectContentRootPath(string dir)
     {
-        if (Directory.Exists(Path.Combine(dir, "content")))
+        if (Directory.Exists(Path.Combine(dir, KnownFolders.ContentDir)))
             return dir;
 
-        if (Directory.Exists(Path.Combine(dir, @"..\..\content")))
+        if (Directory.Exists(Path.Combine(dir, @"..\..\" + KnownFolders.ContentDir)))
             return Path.Combine(dir, @"..\..");
 
         return dir;
