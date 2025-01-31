@@ -4,20 +4,20 @@
     {
         string RootDir { get; }
 
-        IReadOnlyList<SiteItem> Layouts { get; }
+        IReadOnlyList<Leaf> Layouts { get; }
 
-        IReadOnlyList<SiteItem> Content { get; }
+        IReadOnlyList<Leaf> Content { get; }
 
-        IReadOnlyList<SiteItem> Includes { get; }
+        IReadOnlyList<Leaf> Includes { get; }
 
         void Populate();
     }
 
     public class Project : IProject
     {
-        private readonly List<SiteItem> _layouts = [];
-        private readonly List<SiteItem> _content = [];
-        private readonly List<SiteItem> _includes = [];
+        private readonly List<Leaf> _layouts = [];
+        private readonly List<Leaf> _content = [];
+        private readonly List<Leaf> _includes = [];
 
         public Project(string rootDir)
         {
@@ -26,11 +26,11 @@
 
         public string RootDir { get; }
 
-        public IReadOnlyList<SiteItem> Layouts => _layouts;
+        public IReadOnlyList<Leaf> Layouts => _layouts;
 
-        public IReadOnlyList<SiteItem> Content => _content;
+        public IReadOnlyList<Leaf> Content => _content;
 
-        public IReadOnlyList<SiteItem> Includes => _includes;
+        public IReadOnlyList<Leaf> Includes => _includes;
 
         public static string DetectRootDir(string dir)
         {
@@ -53,7 +53,7 @@
                 if (i != -1)
                     firstDirName = relativePath[0..i];
 
-                var item = new SiteItem(RootDir, relativePath);
+                var item = new Leaf(RootDir, relativePath);
 
                 switch (firstDirName.ToLowerInvariant())
                 {

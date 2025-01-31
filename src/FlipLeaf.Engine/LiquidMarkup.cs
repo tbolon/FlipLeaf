@@ -184,11 +184,11 @@ namespace FlipLeaf
                 : StringFilters.Prepend(input, new FilterArguments(new StringValue(_baseUrl)), context);
         }
 
-        public class LiquidFile(SiteItem file)
+        public class LiquidFile(Leaf file)
         {
             public virtual string Name => File.RelativePath;
 
-            protected SiteItem File { get; } = file;
+            protected Leaf File { get; } = file;
 
             public override int GetHashCode() => File.GetHashCode();
 
@@ -199,14 +199,14 @@ namespace FlipLeaf
             };
         }
 
-        public class LiquidInclude(SiteItem file, byte[] content) : LiquidFile(file)
+        public class LiquidInclude(Leaf file, byte[] content) : LiquidFile(file)
         {
-            public new SiteItem File => base.File;
+            public new Leaf File => base.File;
 
             public byte[] Content { get; } = content;
         }
 
-        public class LiquidLayout(SiteItem file, HeaderFieldDictionary yamlHeader, IFluidTemplate template) : LiquidFile(file)
+        public class LiquidLayout(Leaf file, HeaderFieldDictionary yamlHeader, IFluidTemplate template) : LiquidFile(file)
         {
 
             public override string Name { get; } = Path.GetFileNameWithoutExtension(file.Name);

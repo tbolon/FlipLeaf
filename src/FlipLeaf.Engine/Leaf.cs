@@ -1,8 +1,8 @@
 namespace FlipLeaf
 {
-    public class SiteItem
+    public class Leaf
     {
-        public SiteItem(string rootDir, string relativePath)
+        public Leaf(string rootDir, string relativePath)
         {
             Name = Path.GetFileName(relativePath);
             RelativePath = relativePath.Replace('\\', '/');
@@ -34,12 +34,18 @@ namespace FlipLeaf
 
         public override string ToString() => RelativePath;
 
-        public override bool Equals(object? obj) => obj is SiteItem other && string.Equals(RelativePath, other.RelativePath, StringComparison.Ordinal);
+        public override bool Equals(object? obj) => obj is Leaf other && string.Equals(RelativePath, other.RelativePath, StringComparison.Ordinal);
 
         public override int GetHashCode() => RelativePath.GetHashCode();
 
         public string ReadAllText() => File.ReadAllText(FullPath);
 
         public Stream OpenRead() => new FileStream(FullPath, FileMode.Open, FileAccess.Read);
+
+        public NoFlip FlipToNothing() => NoFlip.Instance;
+
+        public ContentFlip FlipToContent(string content, string? outName = null) => new ContentFlip(outName ?? OutName, content);
+
+        public CopyLeaf FlipToCopy() => new CopyLeaf(Name);
     }
 }

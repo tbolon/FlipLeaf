@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Options;
 
 
@@ -51,8 +52,17 @@ public sealed class SiteBuilder
 
     public Site Build()
     {
+        Services.AddSingleton(sp =>
+        {
+            var siteOptions = sp.GetRequiredService<IOptions<SiteOptions>>().Value;
+            var host = sp.GetRequiredService<IHost>();
+            return new Site(host, siteOptions);
+        });
+
+        Services.AddSingleton<ISite>(sp => sp.GetRequiredService<Site>());
+
         var host = HostBuilder.Build();
-        var siteOptions = host.Services.GetRequiredService<IOptions<SiteOptions>>().Value;
-        return new Site(host, siteOptions);
+
+        return host.Services.GetRequiredService<Site>();
     }
 }
