@@ -14,6 +14,8 @@ public interface IWarmup
 public interface ISite
 {
     IProject Project { get; }
+
+    IServiceProvider Services { get; }
 }
 
 public class SiteOptions
@@ -73,6 +75,18 @@ public sealed class Site : IHost, ISite
         }
     }
 
+    public PipelineStep AddToPipeline(Func<ISite, Leaf, Task<ILeafAction>> task)
+    {
+        return AddToPipeline(new ProcessDelegate(ProcessContextToFlip));
+
+        async Task ProcessContextToFlip(LeafContext ctx)
+        {
+            var flip = await task(this, ctx.Input);
+            await flip.Execute(ctx);
+        }
+
+    }
+
     public PipelineStep AddToPipeline(Func<Leaf, Task<ILeafAction>> task)
     {
         return AddToPipeline(new ProcessDelegate(ProcessContextToFlip));
@@ -109,11 +123,27 @@ public sealed class Site : IHost, ISite
 
     public void Dispose() => _host.Dispose();
 
-    public void Run() => this.RunAsync().GetAwaiter().GetResult();
+    public void Run(string[] args) => this.RunAsync().GetAwaiter().GetResult();
+
+    public async Task RunAsync(string[] args, CancellationToken cancellationToken = default)
+    {
+        if (args.FirstOrDefault() == "watch")
+        {
+            await this.RunAsync(cancellationToken);
+        }
+        else
+        {
+            await ((IHost)this).StartAsync(cancellationToken);
+            await ((IHost)this).StopAsync(cancellationToken);
+        }
+    }
 
     /// <summary>Start the website generation.</summary>
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    async Task IHost.StartAsync(CancellationToken cancellationToken)
     {
+        // populate
+        _project.Populate();
+
         // warmup
         foreach (var warmup in Services.GetServices<IWarmup>())
         {
@@ -127,7 +157,7 @@ public sealed class Site : IHost, ISite
     }
 
     /// <summary>Stop the website.</summary>
-    public Task StopAsync(CancellationToken cancellationToken = default)
+    Task IHost.StopAsync(CancellationToken cancellationToken)
     {
         return _host.StopAsync(cancellationToken);
     }

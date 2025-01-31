@@ -33,6 +33,12 @@ public sealed class SiteBuilder
             options.RootDir = DetectContentRootPath(siteBuilder.HostBuilder.Environment.ContentRootPath ?? Environment.CurrentDirectory);
         });
 
+        if (settings.Args?.FirstOrDefault() == "watch")
+        {
+            siteBuilder.Services.AddHostedService<WatcherService>();
+            siteBuilder.Services.AddSingleton<IHostLifetime, ConsoleLifetime>();
+        }
+
         return siteBuilder;
     }
 
