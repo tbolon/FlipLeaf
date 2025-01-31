@@ -44,8 +44,8 @@ namespace FlipLeaf
 
         public NoFlip FlipToNothing() => NoFlip.Instance;
 
-        public ContentFlip FlipToContent(string content, string? outName = null) => new ContentFlip(outName ?? OutName, content);
+        public ContentFlip FlipToContent(string content, string? outName = null) => new(outName ?? OutName, content);
 
-        public CopyLeaf FlipToCopy() => new CopyLeaf(Name);
+        public CopyLeaf FlipToCopy() => new(Name);
     }
 }

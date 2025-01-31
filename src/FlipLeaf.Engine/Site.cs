@@ -123,7 +123,7 @@ public sealed class Site : IHost, ISite
 
     public void Dispose() => _host.Dispose();
 
-    public void Run(string[] args) => this.RunAsync().GetAwaiter().GetResult();
+    public void Run(string[] args) => this.RunAsync(args).GetAwaiter().GetResult();
 
     public async Task RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
