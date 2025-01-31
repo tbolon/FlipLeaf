@@ -84,6 +84,17 @@ public sealed class Site : IHost, ISite
         }
     }
 
+    public PipelineStep AddToPipeline(Func<Leaf, ILeafAction> task)
+    {
+        return AddToPipeline(new ProcessDelegate(ProcessContextToFlip));
+
+        async Task ProcessContextToFlip(LeafContext ctx)
+        {
+            var flip = task(ctx.Input);
+            await flip.Execute(ctx);
+        }
+    }
+
     public PipelineStep AddToPipeline(ProcessDelegate task)
     {
         var step = new PipelineStep(task);
