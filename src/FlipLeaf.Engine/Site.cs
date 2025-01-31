@@ -1,66 +1,85 @@
 ﻿using Microsoft.CodeAnalysis;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Primitives;
 
 namespace FlipLeaf;
 
-public interface IWarmup
-{
-    Task Warmup(ISite site, CancellationToken cancellationToken);
-}
+
+public delegate Task ProcessDelegate(LeafContext context);
 
 public interface ISite
 {
-    IProject Project { get; }
+    string RootDir { get; }
+
+    IReadOnlyList<Leaf> Layouts { get; }
+
+    IReadOnlyList<Leaf> Content { get; }
+
+    IReadOnlyList<Leaf> Includes { get; }
+
+    void Populate();
 
     IServiceProvider Services { get; }
 }
 
-public class SiteOptions
-{
-    /// <summary>
-    /// Path where the site content is located.
-    /// Defaults to "./content".
-    /// </summary>
-    public string? RootDir { get; set; }
-}
-
-public sealed class PipelineStep
-{
-    public PipelineStep(ProcessDelegate processDelegate)
-    {
-        Delegate = processDelegate;
-    }
-
-    public ProcessDelegate Delegate { get; }
-}
-
-public delegate Task ProcessDelegate(LeafContext context);
-
 public sealed class Site : IHost, ISite
 {
     private readonly IHost _host;
-    private readonly Project _project;
-    private readonly string _dest;
     private readonly List<PipelineStep> _pipelines = [];
     private readonly List<Action<Site>> _postProcesses = [];
+    private readonly List<Leaf> _layouts = [];
+    private readonly List<Leaf> _content = [];
+    private readonly List<Leaf> _includes = [];
 
     public Site(IHost host, SiteOptions options)
     {
         _host = host;
-        _project = new Project(options.RootDir ?? Environment.CurrentDirectory);
-        _dest = Path.Combine(_project.RootDir, "out");
-        if (!Directory.Exists(_dest))
-            Directory.CreateDirectory(_dest);
+        RootDir = Path.GetFullPath(options.RootDir ?? Environment.CurrentDirectory);
+        OutDir = Path.Combine(RootDir, "out");
+        if (!Directory.Exists(OutDir))
+            Directory.CreateDirectory(OutDir);
     }
 
     public IServiceProvider Services => _host.Services;
 
-    public IProject Project => _project;
+    public IReadOnlyList<Leaf> Layouts => _layouts;
 
-    public string Dest => _dest;
+    public IReadOnlyList<Leaf> Content => _content;
+
+    public IReadOnlyList<Leaf> Includes => _includes;
+
+    public string RootDir { get; }
+
+    public string OutDir { get; }
+
+    public void Populate()
+    {
+        foreach (var filePath in Directory.GetFiles(RootDir, "*.*", SearchOption.AllDirectories))
+        {
+            var relativePath = filePath.Substring(RootDir.Length + 1);
+            var firstDirName = string.Empty;
+            var i = relativePath.IndexOf(Path.DirectorySeparatorChar);
+            if (i != -1)
+                firstDirName = relativePath[0..i];
+
+            var item = new Leaf(RootDir, relativePath);
+
+            switch (firstDirName.ToLowerInvariant())
+            {
+                case "layouts":
+                    _layouts.Add(item);
+                    break;
+
+                case "content":
+                    _content.Add(item);
+                    break;
+
+                case "includes":
+                    _includes.Add(item);
+                    break;
+            }
+        }
+    }
 
     public PipelineStep AddToPipeline(Func<Leaf, Task<string?>> task)
     {
@@ -69,7 +88,7 @@ public sealed class Site : IHost, ISite
         async Task<ILeafAction> ExecuteLeafToString(Leaf leaf)
         {
             var content = await task(leaf);
-            if (content == null) return NoFlip.Instance;
+            if (content == null) return Nope.Instance;
             var outName = Path.GetFileNameWithoutExtension(leaf.Name) + ".html";
             return new ContentFlip(outName, content);
         }
@@ -142,7 +161,7 @@ public sealed class Site : IHost, ISite
     async Task IHost.StartAsync(CancellationToken cancellationToken)
     {
         // populate
-        _project.Populate();
+        this.Populate();
 
         // warmup
         foreach (var warmup in Services.GetServices<IWarmup>())
@@ -164,7 +183,7 @@ public sealed class Site : IHost, ISite
 
     public async Task GenerateAll(CancellationToken cancellationToken = default)
     {
-        foreach (var leaf in Project.Content)
+        foreach (var leaf in this.Content)
         {
             await RunPipeline(leaf);
         }
@@ -187,8 +206,9 @@ public sealed class Site : IHost, ISite
 
             await action.Invoke(ctx);
 
-            if (ctx.Output != null)
+            if (ctx.Output?.Name != null)
             {
+                leaf.OutName = ctx.Output.Name;
                 generated = true;
                 break;
             }
@@ -196,99 +216,5 @@ public sealed class Site : IHost, ISite
 
         if (generated) Console.WriteLine($"✅ {leaf.Name} generated");
         else Console.WriteLine($"🆗 {leaf.Name} up-to-date");
-    }
-}
-
-public sealed class WatcherService : IHostedService
-{
-    private readonly Site _site;
-    private readonly ILiquidMarkup _liquid;
-    private readonly IProject _project;
-    private MemoryCache? _memCache;
-    private FileSystemWatcher? _watcher;
-
-    public WatcherService(Site site, ILiquidMarkup liquid)
-    {
-        _site = site;
-        _project = _site.Project;
-        _liquid = liquid;
-    }
-
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        // wait for changes
-        _memCache = new MemoryCache(new MemoryCacheOptions());
-        _watcher = new FileSystemWatcher(Path.Combine(_project.RootDir))
-        {
-            IncludeSubdirectories = true,
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime
-        };
-
-        _watcher.Changed += OnChanged;
-        _watcher.EnableRaisingEvents = true;
-
-        return Task.CompletedTask;
-    }
-
-    private void OnChanged(object s, FileSystemEventArgs e)
-    {
-        if (e.Name == null) return;
-        if (e.Name.StartsWith("out")) return;
-        if (e.Name.StartsWith('.')) return;
-        Console.WriteLine($"📝 {e.Name} changed");
-
-        _memCache?.GetOrCreate(e.Name, CreateCacheEntry);
-    }
-
-    private object CreateCacheEntry(ICacheEntry cacheEntry)
-    {
-        Console.WriteLine($"🧲 {cacheEntry.Key} create cache entry");
-        const int timeout = 500; // ms
-        var cts = new CancellationTokenSource(timeout);
-        cacheEntry.AddExpirationToken(new CancellationChangeToken(cts.Token)); // create
-        cacheEntry.SlidingExpiration = TimeSpan.FromMilliseconds(timeout - 100);
-        cacheEntry.RegisterPostEvictionCallback(OnCacheEntryExpired, state: cts);
-        return cacheEntry.Key;
-    }
-
-    private async void OnCacheEntryExpired(object key, object? value, EvictionReason reason, object? state)
-    {
-        Console.WriteLine($"🌪️ {key} evicted");
-        if (value == null || state == null) return;
-        var name = (string)value;
-
-        var i = name.IndexOf('\\');
-        if (i == -1)
-        {
-            return; // skip root items
-        }
-
-        var folder = name[..i];
-        name = name[(i + 1)..];
-        switch (folder)
-        {
-            case "content":
-                var item = _project.Content.FirstOrDefault(i => i.Name == name);
-                if (item != null)
-                {
-                    await _site.RunPipeline(item);
-                }
-                break;
-
-            case "includes":
-            case "layouts":
-                _liquid.LoadTemplates(_project);
-                await _site.GenerateAll();
-                break;
-        }
-
-        ((CancellationTokenSource?)state)?.Dispose();
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        _watcher?.Dispose();
-        _memCache?.Dispose();
-        return Task.CompletedTask;
     }
 }

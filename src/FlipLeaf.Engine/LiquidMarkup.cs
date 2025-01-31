@@ -1,251 +1,250 @@
-﻿using Fluid.Filters;
+﻿using Fluid;
+using Fluid.Filters;
 using Fluid.Values;
-using Fluid;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Primitives;
 
-namespace FlipLeaf
+namespace FlipLeaf;
+
+public interface ILiquidMarkup
 {
-    public interface ILiquidMarkup
+    void LoadTemplates(ISite site);
+
+    ValueTask<(string content, TemplateContext templateContext)> RenderAsync(string content, HeaderFieldDictionary headers);
+
+    ValueTask<string> ApplyLayoutAsync(string source, TemplateContext sourceContext);
+}
+
+public class LiquidMarkup : ILiquidMarkup, IWarmup
+{
+    private readonly Dictionary<string, LiquidLayout> _layouts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, LiquidInclude> _includes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly FlipLeafFileProvider _fileProvider;
+    private readonly string _baseUrl;
+    private readonly IYamlMarkup _yaml;
+
+    public LiquidMarkup(IYamlMarkup yaml)
     {
-        void LoadTemplates(IProject project);
-
-        ValueTask<(string content, TemplateContext templateContext)> RenderAsync(string content, HeaderFieldDictionary headers);
-
-        ValueTask<string> ApplyLayoutAsync(string source, TemplateContext sourceContext);
+        _baseUrl = ".";
+        _fileProvider = new FlipLeafFileProvider(_includes);
+        _yaml = yaml;
     }
 
-    public class LiquidMarkup : ILiquidMarkup, IWarmup
+    public Task Warmup(ISite site, CancellationToken cancellation)
     {
-        private readonly Dictionary<string, LiquidLayout> _layouts = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, LiquidInclude> _includes = new(StringComparer.OrdinalIgnoreCase);
-        private readonly FlipLeafFileProvider _fileProvider;
-        private readonly string _baseUrl;
-        private readonly IYamlMarkup _yaml;
+        LoadTemplates(site);
+        return Task.CompletedTask;
+    }
 
-        public LiquidMarkup(IYamlMarkup yaml)
+    public void LoadTemplates(ISite site)
+    {
+        // populate Layouts
+        _layouts.Clear();
+        foreach (var file in site.Layouts)
         {
-            _baseUrl = ".";
-            _fileProvider = new FlipLeafFileProvider(_includes);
-            _yaml = yaml;
-        }
+            var content = file.ReadAllText();
 
-        public Task Warmup(ISite site, CancellationToken cancellation)
-        {
-            LoadTemplates(site.Project);
-            return Task.CompletedTask;
-        }
-
-        public void LoadTemplates(IProject project)
-        {
-            // populate Layouts
-            _layouts.Clear();
-            foreach (var file in project.Layouts)
+            HeaderFieldDictionary yamlHeader;
+            try
             {
-                var content = file.ReadAllText();
-
-                HeaderFieldDictionary yamlHeader;
-                try
-                {
-                    (content, yamlHeader) = _yaml.ParseHeader(content);
-                }
-                catch (Exception ex)
-                {
-                    throw new ArgumentException($"Layout {file} is invalid: YAML errors", nameof(file), ex);
-                }
-
-                var parser = new FluidParser();
-                parser.RegisterEmptyTag("body", async (writer, encoder, context) =>
-                {
-                    if (context.AmbientValues.TryGetValue("body", out var body))
-                    {
-                        await writer.WriteAsync((string)body).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        throw new ParseException("Could not render body, Layouts can't be evaluated directly.");
-                    }
-
-                    return Fluid.Ast.Completion.Normal;
-                });
-
-                IFluidTemplate template;
-                try
-                {
-                    template = parser.Parse(content);
-                }
-                catch (Exception ex)
-                {
-                    throw new ArgumentException($"Layout {file} in invalid: Liquid errors", nameof(file), ex);
-                }
-
-                var layout = new LiquidLayout(file, yamlHeader, template);
-                _layouts.Add(layout.Name, layout);
+                (content, yamlHeader) = _yaml.ParseHeader(content);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Layout {file} is invalid: YAML errors", nameof(file), ex);
             }
 
-            // populate includes
-            _includes.Clear();
-            foreach (var file in project.Includes)
-            {
-                byte[] content;
-
-                using (var openRead = file.OpenRead())
-                using (var ms = new MemoryStream())
-                {
-                    openRead.CopyTo(ms);
-                    content = ms.ToArray();
-                }
-
-                var include = new LiquidInclude(file, content);
-                _includes.Add(file.Name, include);
-            }
-        }
-
-        public async ValueTask<(string content, TemplateContext templateContext)> RenderAsync(string content, HeaderFieldDictionary headers)
-        {
-            // parse content as template
             var parser = new FluidParser();
-            var pageTemplate = parser.Parse(content);
-
-            // prepare context
-            var templateContext = CreateTemplateContext();
-            templateContext.SetValue(KnownVariables.Page, headers);
-            //templateContext.SetValue(KnownVariables.Site, website);
-
-            // render content
-            var newContent = await pageTemplate.RenderAsync(templateContext);
-            return (newContent, templateContext);
-        }
-
-        public async ValueTask<string> ApplyLayoutAsync(string source, TemplateContext sourceContext)
-        {
-            var pageItem = sourceContext.GetValue(KnownVariables.Page);
-            var layout = await pageItem.GetValueAsync(KnownVariables.Layout, sourceContext).ConfigureAwait(false);
-            var layoutName = layout.ToStringValue();
-            if (string.IsNullOrEmpty(layoutName))
+            parser.RegisterEmptyTag("body", async (writer, encoder, context) =>
             {
-                return source; // no layout field, ends here
+                if (context.AmbientValues.TryGetValue("body", out var body))
+                {
+                    await writer.WriteAsync((string)body).ConfigureAwait(false);
+                }
+                else
+                {
+                    throw new ParseException("Could not render body, Layouts can't be evaluated directly.");
+                }
+
+                return Fluid.Ast.Completion.Normal;
+            });
+
+            IFluidTemplate template;
+            try
+            {
+                template = parser.Parse(content);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Layout {file} in invalid: Liquid errors", nameof(file), ex);
             }
 
-            return await ApplyLayoutAsync(source, sourceContext, layoutName, 0).ConfigureAwait(false);
+            var layout = new LiquidLayout(file, yamlHeader, template);
+            _layouts.Add(layout.Name, layout);
         }
 
-        private async ValueTask<string> ApplyLayoutAsync(string source, TemplateContext sourceContext, string layoutName, int level)
+        // populate includes
+        _includes.Clear();
+        foreach (var file in site.Includes)
         {
-            if (level >= 5)
+            byte[] content;
+
+            using (var openRead = file.OpenRead())
+            using (var ms = new MemoryStream())
             {
-                // no more than x levels of nesting
-                throw new NotSupportedException($"Recursive layouts are limited to 5 levels of recursion");
+                openRead.CopyTo(ms);
+                content = ms.ToArray();
             }
 
+            var include = new LiquidInclude(file, content);
+            _includes.Add(file.Name, include);
+        }
+    }
 
-            // load layout
-            if (!_layouts.TryGetValue(layoutName, out var layout))
-            {
-                return source;
-            }
+    public async ValueTask<(string content, TemplateContext templateContext)> RenderAsync(string content, HeaderFieldDictionary headers)
+    {
+        // parse content as template
+        var parser = new FluidParser();
+        var pageTemplate = parser.Parse(content);
 
-            // create new TemplateContext for the layout
-            var layoutContext = CreateTemplateContext();
-            layoutContext.SetValue(KnownVariables.Page, sourceContext.GetValue(KnownVariables.Page));
-            layoutContext.SetValue(KnownVariables.Layout, layout.YamlHeader);
-            layoutContext.SetValue("body", source);
-            //layoutContext.SetValue(KnownVariables.Site, website);
+        // prepare context
+        var templateContext = CreateTemplateContext();
+        templateContext.SetValue(KnownVariables.Page, headers);
+        //templateContext.SetValue(KnownVariables.Site, website);
 
+        // render content
+        var newContent = await pageTemplate.RenderAsync(templateContext);
+        return (newContent, templateContext);
+    }
 
-            // render layout
-            source = await layout.RenderAsync(layoutContext).ConfigureAwait(false);
-
-            if (!layout.YamlHeader.TryGetValue(KnownVariables.Layout, out var outerLayoutObject) || !(outerLayoutObject is string outerLayoutFile))
-            {
-                // no recusrive layout, we stop here
-                return source;
-            }
-
-            // recursive layout...
-            return await ApplyLayoutAsync(source, sourceContext, outerLayoutFile, level + 1).ConfigureAwait(false);
+    public async ValueTask<string> ApplyLayoutAsync(string source, TemplateContext sourceContext)
+    {
+        var pageItem = sourceContext.GetValue(KnownVariables.Page);
+        var layout = await pageItem.GetValueAsync(KnownVariables.Layout, sourceContext).ConfigureAwait(false);
+        var layoutName = layout.ToStringValue();
+        if (string.IsNullOrEmpty(layoutName))
+        {
+            return source; // no layout field, ends here
         }
 
-        private TemplateContext CreateTemplateContext()
-        {
-            var options = new TemplateOptions();
-            //options.MemberAccessStrategy.Register(typeof(Website.IWebsite));
-            //options.MemberAccessStrategy.Register(typeof(Website.Website));
-            options.Filters.AddFilter("relative_url", RelativeUrlFilterAsync);
-            options.FileProvider = _fileProvider;
+        return await ApplyLayoutAsync(source, sourceContext, layoutName, 0).ConfigureAwait(false);
+    }
 
-            return new TemplateContext(options);
+    private async ValueTask<string> ApplyLayoutAsync(string source, TemplateContext sourceContext, string layoutName, int level)
+    {
+        if (level >= 5)
+        {
+            // no more than x levels of nesting
+            throw new NotSupportedException($"Recursive layouts are limited to 5 levels of recursion");
         }
 
-        private ValueTask<FluidValue> RelativeUrlFilterAsync(FluidValue input, FilterArguments arguments, TemplateContext context)
+
+        // load layout
+        if (!_layouts.TryGetValue(layoutName, out var layout))
         {
-            return string.IsNullOrEmpty(_baseUrl)
-                ? ValueTask.FromResult(input)
-                : StringFilters.Prepend(input, new FilterArguments(new StringValue(_baseUrl)), context);
+            return source;
         }
 
-        public class LiquidFile(Leaf file)
+        // create new TemplateContext for the layout
+        var layoutContext = CreateTemplateContext();
+        layoutContext.SetValue(KnownVariables.Page, sourceContext.GetValue(KnownVariables.Page));
+        layoutContext.SetValue(KnownVariables.Layout, layout.YamlHeader);
+        layoutContext.SetValue("body", source);
+        //layoutContext.SetValue(KnownVariables.Site, website);
+
+
+        // render layout
+        source = await layout.RenderAsync(layoutContext).ConfigureAwait(false);
+
+        if (!layout.YamlHeader.TryGetValue(KnownVariables.Layout, out var outerLayoutObject) || !(outerLayoutObject is string outerLayoutFile))
         {
-            public virtual string Name => File.RelativePath;
-
-            protected Leaf File { get; } = file;
-
-            public override int GetHashCode() => File.GetHashCode();
-
-            public override bool Equals(object? obj) => obj switch
-            {
-                LiquidFile item => File.Equals(item.File),
-                _ => base.Equals(obj)
-            };
+            // no recusrive layout, we stop here
+            return source;
         }
 
-        public class LiquidInclude(Leaf file, byte[] content) : LiquidFile(file)
+        // recursive layout...
+        return await ApplyLayoutAsync(source, sourceContext, outerLayoutFile, level + 1).ConfigureAwait(false);
+    }
+
+    private TemplateContext CreateTemplateContext()
+    {
+        var options = new TemplateOptions();
+        //options.MemberAccessStrategy.Register(typeof(Website.IWebsite));
+        //options.MemberAccessStrategy.Register(typeof(Website.Website));
+        options.Filters.AddFilter("relative_url", RelativeUrlFilterAsync);
+        options.FileProvider = _fileProvider;
+
+        return new TemplateContext(options);
+    }
+
+    private ValueTask<FluidValue> RelativeUrlFilterAsync(FluidValue input, FilterArguments arguments, TemplateContext context)
+    {
+        return string.IsNullOrEmpty(_baseUrl)
+            ? ValueTask.FromResult(input)
+            : StringFilters.Prepend(input, new FilterArguments(new StringValue(_baseUrl)), context);
+    }
+
+    public class LiquidFile(Leaf file)
+    {
+        public virtual string Name => File.RelativePath;
+
+        protected Leaf File { get; } = file;
+
+        public override int GetHashCode() => File.GetHashCode();
+
+        public override bool Equals(object? obj) => obj switch
         {
-            public new Leaf File => base.File;
+            LiquidFile item => File.Equals(item.File),
+            _ => base.Equals(obj)
+        };
+    }
 
-            public byte[] Content { get; } = content;
-        }
+    public class LiquidInclude(Leaf file, byte[] content) : LiquidFile(file)
+    {
+        public new Leaf File => base.File;
 
-        public class LiquidLayout(Leaf file, HeaderFieldDictionary yamlHeader, IFluidTemplate template) : LiquidFile(file)
+        public byte[] Content { get; } = content;
+    }
+
+    public class LiquidLayout(Leaf file, HeaderFieldDictionary yamlHeader, IFluidTemplate template) : LiquidFile(file)
+    {
+
+        public override string Name { get; } = Path.GetFileNameWithoutExtension(file.Name);
+
+        public HeaderFieldDictionary YamlHeader { get; } = yamlHeader;
+
+        public ValueTask<string> RenderAsync(TemplateContext context) => template.RenderAsync(context);
+
+        public override int GetHashCode() => Name.GetHashCode();
+
+        public override string ToString() => Name;
+    }
+
+    private class FlipLeafFileProvider(IDictionary<string, LiquidInclude> includes) : IFileProvider
+    {
+        public IDirectoryContents GetDirectoryContents(string subpath) => NotFoundDirectoryContents.Singleton;
+
+        public IFileInfo GetFileInfo(string subpath) => includes.TryGetValue(subpath, out var include) ? new IncludeFileInfo(include) : new NotFoundFileInfo(subpath);
+
+        public IChangeToken Watch(string filter) => NullChangeToken.Singleton;
+
+        private class IncludeFileInfo(LiquidInclude include) : IFileInfo
         {
+            private readonly byte[] _content = include.Content;
 
-            public override string Name { get; } = Path.GetFileNameWithoutExtension(file.Name);
+            public bool Exists => true;
 
-            public HeaderFieldDictionary YamlHeader { get; } = yamlHeader;
+            public long Length => 0;
 
-            public ValueTask<string> RenderAsync(TemplateContext context) => template.RenderAsync(context);
+            public string PhysicalPath { get; } = include.File.FullPath;
 
-            public override int GetHashCode() => Name.GetHashCode();
+            public string Name { get; } = include.File.Name;
 
-            public override string ToString() => Name;
-        }
+            public DateTimeOffset LastModified => DateTime.MinValue;
 
-        private class FlipLeafFileProvider(IDictionary<string, LiquidInclude> includes) : IFileProvider
-        {
-            public IDirectoryContents GetDirectoryContents(string subpath) => NotFoundDirectoryContents.Singleton;
+            public bool IsDirectory => false;
 
-            public IFileInfo GetFileInfo(string subpath) => includes.TryGetValue(subpath, out var include) ? new IncludeFileInfo(include) : new NotFoundFileInfo(subpath);
-
-            public IChangeToken Watch(string filter) => NullChangeToken.Singleton;
-
-            private class IncludeFileInfo(LiquidInclude include) : IFileInfo
-            {
-                private readonly byte[] _content = include.Content;
-
-                public bool Exists => true;
-
-                public long Length => 0;
-
-                public string PhysicalPath { get; } = include.File.FullPath;
-
-                public string Name { get; } = include.File.Name;
-
-                public DateTimeOffset LastModified => DateTime.MinValue;
-
-                public bool IsDirectory => false;
-
-                public Stream CreateReadStream() => new MemoryStream(_content);
-            }
+            public Stream CreateReadStream() => new MemoryStream(_content);
         }
     }
 }

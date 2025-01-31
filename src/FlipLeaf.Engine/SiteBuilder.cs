@@ -4,7 +4,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Options;
 
-
 namespace FlipLeaf;
 
 public sealed class SiteBuilder

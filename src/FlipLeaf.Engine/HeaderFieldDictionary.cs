@@ -1,4 +1,6 @@
-﻿public sealed class HeaderFieldDictionary : Dictionary<string, object?>
+﻿namespace FlipLeaf;
+
+public sealed class HeaderFieldDictionary : Dictionary<string, object?>
 {
     public HeaderFieldDictionary()
         : base(StringComparer.Ordinal)

@@ -3,247 +3,246 @@ using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 
-namespace FlipLeaf
+namespace FlipLeaf;
+
+public interface IYamlMarkup
 {
-    public interface IYamlMarkup
+    (string content, HeaderFieldDictionary headers) ParseHeader(string content);
+}
+
+public class YamlMarkup : IYamlMarkup
+{
+    private readonly IDeserializer _deserializer;
+
+    public YamlMarkup()
     {
-        (string content, HeaderFieldDictionary headers) ParseHeader(string content);
+        _deserializer = new DeserializerBuilder().Build();
     }
 
-    public class YamlMarkup : IYamlMarkup
+    public void WriteHeaderValue(TextWriter writer, string name, StringValues values, string? defaultValue)
     {
-        private readonly IDeserializer _deserializer;
-
-        public YamlMarkup()
+        if (values == StringValues.Empty && defaultValue == null)
         {
-            _deserializer = new DeserializerBuilder().Build();
+            return;
         }
 
-        public void WriteHeaderValue(TextWriter writer, string name, StringValues values, string? defaultValue)
+        writer.Write(name);
+        writer.Write(": ");
+
+        if (values == StringValues.Empty)
         {
-            if (values == StringValues.Empty && defaultValue == null)
+            if (defaultValue != null)
             {
-                return;
+                // default value
+                WriteValue(writer, defaultValue);
             }
+        }
+        else if (values.Count > 1)
+        {
+            // mutiple values
+            writer.WriteLine();
 
-            writer.Write(name);
-            writer.Write(": ");
-
-            if (values == StringValues.Empty)
+            foreach (var value in values)
             {
-                if (defaultValue != null)
-                {
-                    // default value
-                    WriteValue(writer, defaultValue);
-                }
+                writer.Write("  - ");
+                WriteValue(writer, value ?? string.Empty);
             }
-            else if (values.Count > 1)
-            {
-                // mutiple values
-                writer.WriteLine();
+        }
+        else
+        {
+            // single value
+            WriteValue(writer, values[0] ?? string.Empty);
+        }
 
-                foreach (var value in values)
-                {
-                    writer.Write("  - ");
-                    WriteValue(writer, value ?? string.Empty);
-                }
+        static void WriteValue(TextWriter w, string value)
+        {
+            if (value == string.Empty)
+            {
+                w.Write("''");
+                w.WriteLine();
+            }
+            else if (value.Contains(','))
+            {
+                w.Write("\"");
+                w.Write(value);
+                w.Write("\"");
+                w.WriteLine();
             }
             else
             {
-                // single value
-                WriteValue(writer, values[0] ?? string.Empty);
+                w.Write(value);
+                w.WriteLine();
             }
+        }
+    }
 
-            static void WriteValue(TextWriter w, string value)
+    public (string content, HeaderFieldDictionary headers) ParseHeader(string content)
+    {
+        HeaderFieldDictionary items;
+        var newContent = content;
+        bool parsed;
+        HeaderFieldDictionary? pageContext;
+        try
+        {
+            parsed = TryParseHeader(ref newContent, out pageContext);
+        }
+        catch (SyntaxErrorException see)
+        {
+            throw new InvalidOperationException($"The YAML header of the page is invalid", see);
+        }
+
+        items = [];
+
+        if (parsed && pageContext != null)
+        {
+            foreach (var pair in pageContext)
             {
-                if (value == string.Empty)
-                {
-                    w.Write("''");
-                    w.WriteLine();
-                }
-                else if (value.Contains(','))
-                {
-                    w.Write("\"");
-                    w.Write(value);
-                    w.Write("\"");
-                    w.WriteLine();
-                }
-                else
-                {
-                    w.Write(value);
-                    w.WriteLine();
-                }
+                items[pair.Key] = pair.Value;
             }
         }
 
-        public (string content, HeaderFieldDictionary headers) ParseHeader(string content)
+        return (newContent, items);
+    }
+
+    public bool TryParseHeader(ref string source, out HeaderFieldDictionary? pageContext)
+    {
+        pageContext = null;
+        if (!source.StartsWith("---", StringComparison.Ordinal))
         {
-            HeaderFieldDictionary items;
-            var newContent = content;
-            bool parsed;
-            HeaderFieldDictionary? pageContext;
-            try
-            {
-                parsed = TryParseHeader(ref newContent, out pageContext);
-            }
-            catch (SyntaxErrorException see)
-            {
-                throw new InvalidOperationException($"The YAML header of the page is invalid", see);
-            }
-
-            items = [];
-
-            if (parsed && pageContext != null)
-            {
-                foreach (var pair in pageContext)
-                {
-                    items[pair.Key] = pair.Value;
-                }
-            }
-
-            return (newContent, items);
+            return false;
         }
 
-        public bool TryParseHeader(ref string source, out HeaderFieldDictionary? pageContext)
+        using var input = new StringReader(source);
+
+        if (!TryParseHeader(input, out pageContext, out var i))
         {
-            pageContext = null;
-            if (!source.StartsWith("---", StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            using var input = new StringReader(source);
-
-            if (!TryParseHeader(input, out pageContext, out var i))
-            {
-                return false;
-            }
-
-            // skip content
-            char c;
-            do
-            {
-                i++;
-
-                if (i >= source.Length)
-                {
-                    source = string.Empty;
-                    return true;
-                }
-
-                c = source[i];
-            } while (c == '\r' || c == '\n');
-
-            source = source[i..];
-
-            return true;
+            return false;
         }
 
-        public bool TryParseHeader(TextReader input, out HeaderFieldDictionary? pageContext, out int endPosition)
+        // skip content
+        char c;
+        do
         {
-            if (input == null) throw new ArgumentNullException(nameof(input));
+            i++;
 
-            var parser = new Parser(input);
-
-            pageContext = null;
-            endPosition = 0;
-
-            if (!parser.Accept<StreamStart>(out _))
+            if (i >= source.Length)
             {
-                return false;
+                source = string.Empty;
+                return true;
             }
 
-            parser.Consume<StreamStart>();
+            c = source[i];
+        } while (c == '\r' || c == '\n');
 
-            if (!parser.Accept<DocumentStart>(out var docStart))
-            {
-                return false;
-            }
+        source = source[i..];
 
-            // we don't accept implicit start document: the --- are mandatory
-            // they serve as a method to detect the yaml header
-            if (docStart.IsImplicit)
-            {
-                return false;
-            }
+        return true;
+    }
 
-            var doc = _deserializer.Deserialize(parser);
-            if (doc == null)
-            {
-                return false;
-            }
+    public bool TryParseHeader(TextReader input, out HeaderFieldDictionary? pageContext, out int endPosition)
+    {
+        if (input == null) throw new ArgumentNullException(nameof(input));
 
-            pageContext = Convert(doc) as HeaderFieldDictionary;
-            if (pageContext == null)
-            {
-                return false;
-            }
+        var parser = new Parser(input);
 
-            if (!parser.Accept<DocumentStart>(out _) || parser.Current == null)
-            {
-                return false;
-            }
+        pageContext = null;
+        endPosition = 0;
 
-            endPosition = (int)parser.Current.End.Index - 1;
-
-            return true;
-
+        if (!parser.Accept<StreamStart>(out _))
+        {
+            return false;
         }
 
-        private static object? Convert(object value)
+        parser.Consume<StreamStart>();
+
+        if (!parser.Accept<DocumentStart>(out var docStart))
         {
-            if (value == null)
-            {
-                return null;
-            }
+            return false;
+        }
 
-            var docType = value.GetType();
+        // we don't accept implicit start document: the --- are mandatory
+        // they serve as a method to detect the yaml header
+        if (docStart.IsImplicit)
+        {
+            return false;
+        }
 
-            switch (Type.GetTypeCode(docType))
-            {
-                case TypeCode.Boolean:
-                case TypeCode.Byte:
-                case TypeCode.Decimal:
-                case TypeCode.Double:
-                case TypeCode.Int16:
-                case TypeCode.Int32:
-                case TypeCode.Int64:
-                case TypeCode.SByte:
-                case TypeCode.Single:
-                case TypeCode.UInt16:
-                case TypeCode.UInt32:
-                case TypeCode.UInt64:
-                case TypeCode.Empty:
+        var doc = _deserializer.Deserialize(parser);
+        if (doc == null)
+        {
+            return false;
+        }
+
+        pageContext = Convert(doc) as HeaderFieldDictionary;
+        if (pageContext == null)
+        {
+            return false;
+        }
+
+        if (!parser.Accept<DocumentStart>(out _) || parser.Current == null)
+        {
+            return false;
+        }
+
+        endPosition = (int)parser.Current.End.Index - 1;
+
+        return true;
+
+    }
+
+    private static object? Convert(object value)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        var docType = value.GetType();
+
+        switch (Type.GetTypeCode(docType))
+        {
+            case TypeCode.Boolean:
+            case TypeCode.Byte:
+            case TypeCode.Decimal:
+            case TypeCode.Double:
+            case TypeCode.Int16:
+            case TypeCode.Int32:
+            case TypeCode.Int64:
+            case TypeCode.SByte:
+            case TypeCode.Single:
+            case TypeCode.UInt16:
+            case TypeCode.UInt32:
+            case TypeCode.UInt64:
+            case TypeCode.Empty:
+                return value;
+
+            case TypeCode.Object:
+                if (value == null)
                     return value;
 
-                case TypeCode.Object:
-                    if (value == null)
+                switch (value)
+                {
+                    case IDictionary<object, object> objectDict:
+                        var result = new HeaderFieldDictionary();
+
+                        foreach (var pair in objectDict)
+                        {
+                            var pairKey = pair.Key?.ToString() ?? string.Empty;
+                            var pairValue = Convert(pair.Value);
+                            result[pairKey] = pairValue;
+                        }
+
+                        return result;
+
+                    case IList<object> objectList:
+                        return objectList.Select(o => Convert(o)).ToList();
+
+                    default:
                         return value;
+                }
 
-                    switch (value)
-                    {
-                        case IDictionary<object, object> objectDict:
-                            var result = new HeaderFieldDictionary();
-
-                            foreach (var pair in objectDict)
-                            {
-                                var pairKey = pair.Key?.ToString() ?? string.Empty;
-                                var pairValue = Convert(pair.Value);
-                                result[pairKey] = pairValue;
-                            }
-
-                            return result;
-
-                        case IList<object> objectList:
-                            return objectList.Select(o => Convert(o)).ToList();
-
-                        default:
-                            return value;
-                    }
-
-                default:
-                    return value;
-            }
+            default:
+                return value;
         }
     }
 }
