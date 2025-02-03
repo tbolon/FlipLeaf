@@ -61,6 +61,10 @@ public sealed class Site : IHost, ISite
 
     public void Populate()
     {
+        _layouts.Clear();
+        _content.Clear();
+        _includes.Clear();
+
         foreach (var filePath in Directory.GetFiles(RootDir, "*.*", SearchOption.AllDirectories))
         {
             var relativePath = filePath[(RootDir.Length + 1)..];

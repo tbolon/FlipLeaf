@@ -24,14 +24,14 @@ internal class Bench : IDisposable
     public Bench(string operation)
     {
         _operation = operation;
-        Console.WriteLine($"{_indents[_level]}>> {operation}");
+        //Console.WriteLine($"{_indents[_level]}>> {operation}");
         Interlocked.Increment(ref _level);
     }
 
     public void Dispose()
     {
         Interlocked.Decrement(ref _level);
-        Console.WriteLine($"{_indents[_level]}<< {_operation} {_stopwatch.ElapsedMilliseconds}ms");
+        //Console.WriteLine($"{_indents[_level]}<< {_operation} {_stopwatch.ElapsedMilliseconds}ms");
     }
 
     public static IDisposable Start(string operation) => new Bench(operation);

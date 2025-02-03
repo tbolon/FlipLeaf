@@ -80,7 +80,7 @@ public class LiquidMarkup : ILiquidMarkup, IWarmup
             }
 
             var layout = new LiquidLayout(file, yamlHeader, template);
-            _layouts.Add(layout.Name, layout);
+            _layouts[layout.Name] = layout;
         }
 
         // populate includes
@@ -97,7 +97,7 @@ public class LiquidMarkup : ILiquidMarkup, IWarmup
             }
 
             var include = new LiquidInclude(file, content);
-            _includes.Add(file.Name, include);
+            _includes[file.Name] = include;
         }
     }
 
