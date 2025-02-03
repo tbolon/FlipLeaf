@@ -5,5 +5,8 @@
         ".vscode/": true,
         "**/bin/": true,
         "**/obj/": true
-    }
+    },,
+    "editor.rulers": [
+        110
+    ]
 }
