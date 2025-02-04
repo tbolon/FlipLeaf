@@ -36,18 +36,16 @@ public sealed class MarkdownMarkup : IMarkdownMarkup
 
     public string Render(string markdown, Leaf item)
     {
-        using (var writer = new StringWriter())
-        {
-            var renderer = new FlipLeafPageHtmlRender(writer, item);
+        using var writer = new StringWriter();
+        var renderer = new FlipLeafPageHtmlRender(writer, item);
 
-            _pipeline.Setup(renderer);
+        _pipeline.Setup(renderer);
 
-            var doc = Markdown.Parse(markdown, _pipeline);
-            renderer.Render(doc);
+        var doc = Markdown.Parse(markdown, _pipeline);
+        renderer.Render(doc);
 
-            writer.Flush();
-            return writer.ToString();
-        }
+        writer.Flush();
+        return writer.ToString();
     }
 }
 

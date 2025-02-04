@@ -26,12 +26,14 @@ public sealed class CopyLeaf : ILeafAction
     public Task Execute(LeafContext context)
     {
         var src = context.Input.FullPath;
-        var lastW = File.GetLastWriteTime(src);
+        context.Output.Name = _fileName;
 
-        var dest = Path.Combine(context.Site.OutDir, _fileName);
+        var lastW = File.GetLastWriteTime(src);
+        var dest = context.Output.FullPath;
         if (File.Exists(dest) && lastW <= File.GetLastWriteTime(dest))
         {
             // skip if the file is up-to-date
+            context.Output.Status = LeafOutputStatus.NotChanged;
             return Task.CompletedTask;
         }
 
@@ -39,9 +41,30 @@ public sealed class CopyLeaf : ILeafAction
         Directory.CreateDirectory(dir);
 
         File.Copy(context.Input.FullPath, dest, true);
+        File.SetLastWriteTime(dest, lastW);
 
-        context.Output = new LeafOutput { Name = _fileName };
+        context.Output.Status = LeafOutputStatus.Written;
 
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class FlipStatus : ILeafAction
+{
+    public static readonly FlipStatus Unhandled = new(LeafOutputStatus.Unhandled);
+    public static readonly FlipStatus Written= new(LeafOutputStatus.Written);
+    public static readonly FlipStatus NotChanged= new(LeafOutputStatus.NotChanged);
+
+    private readonly LeafOutputStatus _status;
+
+    private FlipStatus(LeafOutputStatus status)
+    {
+        _status = status;
+    }
+
+    public Task Execute(LeafContext context)
+    {
+        context.Output.Status = _status;
         return Task.CompletedTask;
     }
 }
@@ -59,16 +82,10 @@ public sealed class ContentFlip : ILeafAction
 
     public async Task Execute(LeafContext context)
     {
-        var dest = Path.Combine(context.Site.OutDir, _fileName);
-
-        var dir = Path.GetDirectoryName(dest)!;
-        Directory.CreateDirectory(dir);
-
-        using (var writer = new StreamWriter(dest))
-        {
-            await writer.WriteAsync(_content);
-        }
-
-        context.Output = new LeafOutput { Name = _fileName };
+        context.Output.Name = _fileName;
+        context.Output.EnsureDirectory();
+        using var writer = new StreamWriter(context.Output.FullPath);
+        await writer.WriteAsync(_content);
+        context.Output.Status = LeafOutputStatus.Written;
     }
 }

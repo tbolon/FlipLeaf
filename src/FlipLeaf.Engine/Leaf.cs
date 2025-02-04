@@ -6,6 +6,7 @@ public class Leaf
     {
         Name = Path.GetFileName(relativePath);
         RelativePath = relativePath.Replace('\\', '/');
+        RelativeDir = Path.GetDirectoryName(relativePath) ?? string.Empty;
         FullPath = Path.Combine(rootDir, relativePath).Replace('\\', '/');
         Extension = Path.GetExtension(FullPath).ToLowerInvariant();
         OutName = Name;
@@ -14,19 +15,28 @@ public class Leaf
     public Dictionary<string, object?> Properties { get; } = [];
 
     /// <summary>
-    /// Name of the file, including its extension, relative to the project root.
+    /// Name of the file, including its extension.
     /// </summary>
     public string Name { get; init; }
 
     /// <summary>
-    /// Relative path of the file.
+    /// Relative path of the file, in an URL format ('/'),
     /// </summary>
     public string RelativePath { get; init; }
+
+    /// <summary>
+    /// Relative path of the directory containing the file.
+    /// </summary>
+    public string RelativeDir { get; init; }
 
     /// <summary>
     /// Full path of the file.
     /// </summary>
     public string FullPath { get; init; }
+
+    public bool Exists() => File.Exists(FullPath);
+
+    public DateTime LastWriteTime => Exists() ? File.GetLastWriteTime(FullPath) : DateTime.MinValue;
 
     public string Extension { get; init; }
 
@@ -42,9 +52,7 @@ public class Leaf
 
     public Stream OpenRead() => new FileStream(FullPath, FileMode.Open, FileAccess.Read);
 
-    public Nope FlipToNothing() => Nope.Instance;
+    public ContentFlip AsContentResult(string content, string? outName = null) => new(outName ?? OutName, content);
 
-    public ContentFlip FlipToContent(string content, string? outName = null) => new(outName ?? OutName, content);
-
-    public CopyLeaf FlipToCopy() => new(Name);
+    public CopyLeaf AsCopyResult() => new(Name);
 }

@@ -101,7 +101,18 @@ public sealed class Site : IHost, ISite
             var content = await task(leaf);
             if (content == null) return Nope.Instance;
             var outName = Path.GetFileNameWithoutExtension(leaf.Name) + ".html";
-            return new ContentFlip(outName, content);
+            return leaf.AsContentResult(content, outName);
+        }
+    }
+
+    public PipelineStep AddToPipeline(Func<ISite, Leaf, LeafOutput, Task<ILeafAction>> task)
+    {
+        return AddToPipeline(new ProcessDelegate(ProcessContextToFlip));
+
+        async Task ProcessContextToFlip(LeafContext ctx)
+        {
+            var flip = await task(this, ctx.Input, ctx.Output);
+            await flip.Execute(ctx);
         }
     }
 
@@ -208,7 +219,7 @@ public sealed class Site : IHost, ISite
     public async Task RunPipeline(Leaf leaf)
     {
         Console.WriteLine($"💥 {leaf.Name} generating...");
-        var generated = false;
+        var written = false;
 
         var ctx = new LeafContext(this, leaf);
         foreach (var step in _pipelines)
@@ -217,15 +228,15 @@ public sealed class Site : IHost, ISite
 
             await action.Invoke(ctx);
 
-            if (ctx.Output?.Name != null)
+            if (ctx.Output.Status != LeafOutputStatus.Unhandled)
             {
                 leaf.OutName = ctx.Output.Name;
-                generated = true;
+                written = ctx.Output.Status == LeafOutputStatus.Written;
                 break;
             }
         }
 
-        if (generated) Console.WriteLine($"✅ {leaf.Name} generated");
+        if (written) Console.WriteLine($"✅ {leaf.Name} written");
         else Console.WriteLine($"🆗 {leaf.Name} up-to-date");
     }
 }

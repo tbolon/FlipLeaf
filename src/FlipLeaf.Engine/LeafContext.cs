@@ -6,11 +6,12 @@ public sealed class LeafContext
     {
         Site = site;
         Input = input;
+        Output = new LeafOutput(site, input);
     }
 
     public Site Site { get; }
 
     public Leaf Input { get; }
 
-    public LeafOutput? Output { get; set; }
+    public LeafOutput Output { get; }
 }
