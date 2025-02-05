@@ -25,7 +25,7 @@ public class Leaf
     public string RelativePath { get; init; }
 
     /// <summary>
-    /// Relative path of the directory containing the file.
+    /// Relative path of the directory containing the file to the root directory.
     /// </summary>
     public string RelativeDir { get; init; }
 

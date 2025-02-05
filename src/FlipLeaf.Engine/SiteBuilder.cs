@@ -29,7 +29,7 @@ public sealed class SiteBuilder
 
         siteBuilder.Services.AddOptions().Configure<SiteOptions>(options =>
         {
-            options.ContentDir = DetectContentRootPath(siteBuilder.HostBuilder.Environment.ContentRootPath ?? Environment.CurrentDirectory);
+            options.RootDir = DetectContentRootPath(siteBuilder.HostBuilder.Environment.ContentRootPath ?? Environment.CurrentDirectory);
         });
 
         if (settings.Args?.FirstOrDefault() == KnownVerbs.WatchVerb)

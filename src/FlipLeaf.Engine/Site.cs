@@ -41,7 +41,12 @@ public sealed class Site : IHost, ISite
     public Site(IHost host, SiteOptions options)
     {
         _host = host;
-        RootDir = Path.GetFullPath(options.ContentDir ?? Environment.CurrentDirectory);
+        RootDir = Path.GetFullPath(options.RootDir ?? Environment.CurrentDirectory);
+
+        ContentDir = Path.Combine(RootDir, options.ContentDir);
+        IncludesDir = Path.Combine(RootDir, KnownFolders.IncludesDir);
+        LayoutsDir = Path.Combine(RootDir, KnownFolders.LayoutsDir);
+
         OutDir = Path.Combine(RootDir, KnownFolders.OutDir);
         if (!Directory.Exists(OutDir))
             Directory.CreateDirectory(OutDir);
@@ -55,40 +60,46 @@ public sealed class Site : IHost, ISite
 
     public IReadOnlyList<Leaf> Includes => _includes;
 
+    /// <summary>
+    /// Root directory of the site.
+    /// </summary>
     public string RootDir { get; }
 
+    /// <summary>
+    /// Directory where output files should be written.
+    /// </summary>
     public string OutDir { get; }
+
+    /// <summary>
+    /// Directory from which content files are read.
+    /// </summary>
+    public string ContentDir { get; }
+
+    private string IncludesDir { get; }
+
+    private string LayoutsDir { get; }
 
     public void Populate()
     {
-        _layouts.Clear();
         _content.Clear();
-        _includes.Clear();
-
-        foreach (var filePath in Directory.GetFiles(RootDir, "*.*", SearchOption.AllDirectories))
+        foreach (var filePath in Directory.GetFiles(ContentDir, "*.*", SearchOption.AllDirectories))
         {
-            var relativePath = filePath[(RootDir.Length + 1)..];
-            var firstDirName = string.Empty;
-            var i = relativePath.IndexOf(Path.DirectorySeparatorChar);
-            if (i != -1)
-                firstDirName = relativePath[0..i];
+            var relativePath = filePath[(ContentDir.Length + 1)..];
+            _content.Add(new Leaf(ContentDir, relativePath));
+        }
 
-            var item = new Leaf(RootDir, relativePath);
+        _includes.Clear();
+        foreach (var filePath in Directory.GetFiles(IncludesDir, "*.*", SearchOption.AllDirectories))
+        {
+            var relativePath = filePath[(IncludesDir.Length + 1)..];
+            _includes.Add(new Leaf(IncludesDir, relativePath));
+        }
 
-            switch (firstDirName.ToLowerInvariant())
-            {
-                case KnownFolders.LayoutsDir:
-                    _layouts.Add(item);
-                    break;
-
-                case KnownFolders.ContentDir:
-                    _content.Add(item);
-                    break;
-
-                case KnownFolders.IncludesDir:
-                    _includes.Add(item);
-                    break;
-            }
+        _layouts.Clear();
+        foreach (var filePath in Directory.GetFiles(LayoutsDir, "*.*", SearchOption.AllDirectories))
+        {
+            var relativePath = filePath[(LayoutsDir.Length + 1)..];
+            _includes.Add(new Leaf(LayoutsDir, relativePath));
         }
     }
 
