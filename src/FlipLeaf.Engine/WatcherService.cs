@@ -67,12 +67,13 @@ public sealed class WatcherService : IHostedService
             return; // skip root items
         }
 
-        var folder = name[..i];
-        name = name[(i + 1)..];
+        var folder = name[..i]; // "content"
+        name = name[(i + 1)..]; // "css\2-site.css"
+        name = name.Replace('\\', '/');
         switch (folder)
         {
             case KnownFolders.ContentDir:
-                var item = _site.Content.FirstOrDefault(i => i.Name == name);
+                var item = _site.Content.FirstOrDefault(i => i.RelativePath == name);
                 if (item != null)
                 {
                     await _site.RunPipeline(item);
