@@ -99,7 +99,7 @@ public sealed class Site : IHost, ISite
         foreach (var filePath in Directory.GetFiles(LayoutsDir, "*.*", SearchOption.AllDirectories))
         {
             var relativePath = filePath[(LayoutsDir.Length + 1)..];
-            _includes.Add(new Leaf(LayoutsDir, relativePath));
+            _layouts.Add(new Leaf(LayoutsDir, relativePath));
         }
     }
 
