@@ -1,17 +1,23 @@
 ﻿namespace FlipLeaf;
 
-public sealed class LeafContext
+/// <summary>
+/// A process context, where a leaf input is mean to be transformed into an <typeparamref name="TOut"/>.
+/// </summary>
+/// <typeparam name="TOut">Type of the leaf output.</typeparam>
+public class LeafContext<TOut>(Site site, Leaf input, TOut output)
 {
-    public LeafContext(Site site, Leaf input)
-    {
-        Site = site;
-        Input = input;
-        Output = new LeafOutput(site, input);
-    }
+    /// <summary>
+    /// Gets the site containing this leaf input.
+    /// </summary>
+    public Site Site { get; } = site;
 
-    public Site Site { get; }
+    /// <summary>
+    /// Gets the input leaf.
+    /// </summary>
+    public Leaf Input { get; } = input;
 
-    public Leaf Input { get; }
-
-    public LeafOutput Output { get; }
+    /// <summary>
+    /// Gets the output leaf.
+    /// </summary>
+    public TOut Output { get; } = output;
 }

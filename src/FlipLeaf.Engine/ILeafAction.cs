@@ -1,20 +1,26 @@
 ﻿namespace FlipLeaf;
 
-public interface ILeafAction
+/// <summary>
+/// Describes an action which should be executed against a <see cref="LeafContext{TOut}"/> of <see cref="LeafFileOutput"/> to generate this output.
+/// </summary>
+public interface ILeafAction<TOut>
 {
-    Task Execute(LeafContext context);
+    /// <summary>
+    /// Execute the action.
+    /// </summary>
+    Task Execute(LeafContext<TOut> context);
 }
 
-public sealed class Nope : ILeafAction
+public sealed class Nope : ILeafAction<LeafFileOutput>
 {
     public static readonly Nope Instance = new();
 
     private Nope() { }
 
-    public Task Execute(LeafContext content) => Task.CompletedTask;
+    public Task Execute(LeafContext<LeafFileOutput> content) => Task.CompletedTask;
 }
 
-public sealed class CopyLeaf : ILeafAction
+public sealed class CopyLeaf : ILeafAction<LeafFileOutput>
 {
     private readonly string _fileName;
 
@@ -23,7 +29,7 @@ public sealed class CopyLeaf : ILeafAction
         _fileName = fileName;
     }
 
-    public Task Execute(LeafContext context)
+    public Task Execute(LeafContext<LeafFileOutput> context)
     {
         var src = context.Input.FullPath;
         context.Output.Name = _fileName;
@@ -49,7 +55,7 @@ public sealed class CopyLeaf : ILeafAction
     }
 }
 
-public sealed class FlipStatus : ILeafAction
+public sealed class FlipStatus : ILeafAction<LeafFileOutput>
 {
     public static readonly FlipStatus Unhandled = new(LeafOutputStatus.Unhandled);
     public static readonly FlipStatus Written= new(LeafOutputStatus.Written);
@@ -62,14 +68,14 @@ public sealed class FlipStatus : ILeafAction
         _status = status;
     }
 
-    public Task Execute(LeafContext context)
+    public Task Execute(LeafContext<LeafFileOutput> context)
     {
         context.Output.Status = _status;
         return Task.CompletedTask;
     }
 }
 
-public sealed class ContentFlip : ILeafAction
+public sealed class ContentFlip : ILeafAction<LeafFileOutput>
 {
     private readonly string _fileName;
     private readonly string _content;
@@ -80,7 +86,7 @@ public sealed class ContentFlip : ILeafAction
         _content = content;
     }
 
-    public async Task Execute(LeafContext context)
+    public async Task Execute(LeafContext<LeafFileOutput> context)
     {
         context.Output.Name = _fileName;
         context.Output.EnsureDirectory();

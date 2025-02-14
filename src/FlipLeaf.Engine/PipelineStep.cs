@@ -1,11 +1,11 @@
 ﻿namespace FlipLeaf;
 
-public sealed class PipelineStep
+public sealed class PipelineStep<TOut>
 {
-    public PipelineStep(ProcessDelegate processDelegate)
+    public PipelineStep(ProcessDelegate<TOut> processDelegate)
     {
         Delegate = processDelegate;
     }
 
-    public ProcessDelegate Delegate { get; }
+    public ProcessDelegate<TOut> Delegate { get; }
 }

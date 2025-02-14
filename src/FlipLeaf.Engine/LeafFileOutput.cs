@@ -1,19 +1,26 @@
 ﻿namespace FlipLeaf;
 
+public interface IStoppableOutput
+{
+    bool ShouldStop();
+}
+
 /// <summary>
-/// Represents the output of a page.
+/// Represents a file output for a leaf.
 /// </summary>
-public class LeafOutput
+public class LeafFileOutput : IStoppableOutput
 {
     private readonly string _outDir;
     private readonly string _directory;
+    private readonly Leaf _input;
     private string _name;
 
-    public LeafOutput(Site site, Leaf input)
+    public LeafFileOutput(Site site, Leaf input)
     {
         _outDir = site.OutDir;
         _directory = input.RelativeDir;
         _name = input.Name;
+        _input = input;
     }
 
     /// <summary>
@@ -43,7 +50,7 @@ public class LeafOutput
     /// </summary>
     public LeafOutputStatus Status { get; set; }
 
-    public LeafOutput WithExtension(string extension)
+    public LeafFileOutput WithExtension(string extension)
     {
         if (extension.StartsWith('.'))
             Name = Path.GetFileNameWithoutExtension(Name) + extension;
@@ -58,6 +65,17 @@ public class LeafOutput
     {
         var dir = Path.Combine(_outDir, _directory);
         System.IO.Directory.CreateDirectory(dir);
+    }
+
+    public bool ShouldStop()
+    {
+        if (Status != LeafOutputStatus.Unhandled)
+        {
+            _input.OutName = Name;
+            return true;
+        }
+
+        return false;
     }
 }
 
