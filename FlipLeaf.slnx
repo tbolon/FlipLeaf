@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/FlipLeaf.Engine/FlipLeaf.Engine.csproj" />
+  <Project Path="src/FlipLeaf.Sdk/FlipLeaf.Sdk.csproj" />
+  <Project Path="src/FlipLeaf.Tool/FlipLeaf.Tool.csproj" />
+  <Project Path="tests/FlipLeaf.Engine.Tests/FlipLeaf.Engine.Tests.csproj" />
+</Solution>

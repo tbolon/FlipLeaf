@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <RootNamespace>FlipLeaf</RootNamespace>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <VersionSuffix>alpha-15</VersionSuffix>  
@@ -11,17 +11,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Fluid.Core" Version="2.17.0" />
-    <PackageReference Include="Markdig" Version="0.39.1" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="System.Text.Encodings.Web" Version="9.0.0" />
-    <PackageReference Include="System.Text.Json" Version="9.0.0" />
+    <PackageReference Include="Fluid.Core" Version="2.31.0" />
+    <PackageReference Include="Markdig" Version="0.44.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
     <PackageReference Include="ColorCode.HTML" Version="2.0.15" />
-    <PackageReference Include="CsharpToColouredHTML.Core" Version="1.0.44" />
+    <PackageReference Include="CsharpToColouredHTML.Core" Version="3.2.0" />
   </ItemGroup>   
   
   <ItemGroup>
