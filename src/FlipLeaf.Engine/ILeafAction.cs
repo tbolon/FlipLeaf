@@ -39,7 +39,7 @@ public sealed class CopyLeaf : ILeafAction<LeafFileOutput>
         if (File.Exists(dest) && lastW <= File.GetLastWriteTime(dest))
         {
             // skip if the file is up-to-date
-            context.Output.Status = LeafOutputStatus.NotChanged;
+            context.Output.Status = LeafOutputStatus.NotModified;
             return Task.CompletedTask;
         }
 
@@ -59,7 +59,7 @@ public sealed class FlipStatus : ILeafAction<LeafFileOutput>
 {
     public static readonly FlipStatus Unhandled = new(LeafOutputStatus.Unhandled);
     public static readonly FlipStatus Written= new(LeafOutputStatus.Written);
-    public static readonly FlipStatus NotChanged= new(LeafOutputStatus.NotChanged);
+    public static readonly FlipStatus NotChanged= new(LeafOutputStatus.NotModified);
 
     private readonly LeafOutputStatus _status;
 

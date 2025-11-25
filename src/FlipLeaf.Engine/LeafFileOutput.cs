@@ -23,40 +23,32 @@ public class LeafFileOutput : IStoppableOutput
         _input = input;
     }
 
-    /// <summary>
-    /// Name of the file, including its extension.
-    /// </summary>
+    /// <summary>Name of the file, including its extension.</summary>
     public string Name
     {
         get => _name;
         set => _name = value;
     }
 
-    /// <summary>
-    /// Path of the target directory containing the file.
-    /// </summary>
-    public string Directory
-    {
-        get => _directory;
-    }
+    /// <summary>Path of the target directory containing the file.</summary>
+    public string Directory => _directory;
 
     public string FullPath => Path.Combine(_outDir, _directory, _name);
 
     public DateTime LastWriteTime => Exists() ? File.GetLastWriteTime(FullPath) : DateTime.MinValue;
 
     /// <summary>
-    /// Gets a value indicating that something has been completed to the output.
+    /// Gets a value indicating that something has been completed regarding the output.
     /// The leaf should be considered as transformed and the pipeline terminated.
     /// </summary>
     public LeafOutputStatus Status { get; set; }
 
-    public LeafFileOutput WithExtension(string extension)
+    public void ChangeExtension(string extension)
     {
         if (extension.StartsWith('.'))
             Name = Path.GetFileNameWithoutExtension(Name) + extension;
         else
             Name = Path.GetFileNameWithoutExtension(Name) + "." + extension;
-        return this;
     }
 
     public bool Exists() => File.Exists(FullPath);
@@ -76,23 +68,20 @@ public class LeafFileOutput : IStoppableOutput
         }
 
         return false;
+
     }
+
+    public ContentFlip AsContentResult(string content, string? name = null) => new(name ?? Name, content);
 }
 
 public enum LeafOutputStatus
 {
-    /// <summary>
-    /// The input has been ignored, no output has been generated.
-    /// </summary>
+    /// <summary>The input has been ignored, no output has been generated.</summary>
     Unhandled,
 
-    /// <summary>
-    /// An output has been written.
-    /// </summary>
+    /// <summary>An output has been written.</summary>
     Written,
 
-    /// <summary>
-    /// The output is already up-to-date.
-    /// </summary>
-    NotChanged,
+    /// <summary>The output is already up-to-date.</summary>
+    NotModified,
 }

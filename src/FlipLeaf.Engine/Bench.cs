@@ -2,13 +2,14 @@ using System.Diagnostics;
 
 namespace FlipLeaf;
 
-internal class Bench : IDisposable
+internal sealed class Bench : IDisposable
 {
     private static int _level = 0;
 
     private static readonly string[] _indents;
 
     private readonly string _operation;
+
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
     static Bench()
@@ -35,6 +36,4 @@ internal class Bench : IDisposable
     }
 
     public static IDisposable Start(string operation) => new Bench(operation);
-
-
 }
