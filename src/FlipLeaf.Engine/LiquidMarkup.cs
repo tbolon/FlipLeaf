@@ -240,7 +240,7 @@ public class LiquidMarkup : ILiquidMarkup, IWarmup
 
             public string Name { get; } = include.File.Name;
 
-            public DateTimeOffset LastModified => DateTime.MinValue;
+            public DateTimeOffset LastModified => DateTimeOffset.MinValue;
 
             public bool IsDirectory => false;
 
