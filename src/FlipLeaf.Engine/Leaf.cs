@@ -2,12 +2,12 @@ namespace FlipLeaf;
 
 public class Leaf
 {
-    public Leaf(string rootDir, string relativePath)
+    public Leaf(string containerDir, string relativePath)
     {
         Name = Path.GetFileName(relativePath);
         RelativePath = relativePath.Replace('\\', '/');
         RelativeDir = Path.GetDirectoryName(relativePath) ?? string.Empty;
-        FullPath = Path.Combine(rootDir, relativePath).Replace('\\', '/');
+        FullPath = Path.Combine(containerDir, relativePath).Replace('\\', '/');
         Extension = Path.GetExtension(FullPath).ToLowerInvariant();
         OutName = Name;
     }
@@ -16,29 +16,37 @@ public class Leaf
 
     /// <summary>
     /// Name of the file, including its extension.
+    /// E.g.: why-42.md
     /// </summary>
     public string Name { get; init; }
 
     /// <summary>
-    /// Relative path of the file, in an URL format ('/'),
+    /// Relative path of the file, in an URL format ('/').
+    /// E.g.: articles/why-42.md
     /// </summary>
     public string RelativePath { get; init; }
 
     /// <summary>
-    /// Relative path of the directory containing the file to the root directory.
+    /// Path of the directory containing the file relative to the container directory.
+    /// E.g.: articles
     /// </summary>
     public string RelativeDir { get; init; }
 
     /// <summary>
     /// Full path of the file.
+    /// E.g.: d:/repo/content/articles/why-42.md
     /// </summary>
     public string FullPath { get; init; }
 
-    public bool Exists() => File.Exists(FullPath);
-
-    public DateTime LastWriteTime => Exists() ? File.GetLastWriteTime(FullPath) : DateTime.MinValue;
-
+    /// <summary>
+    /// Extension of the file, including the dot.
+    /// E.g.: .md
+    /// </summary>
     public string Extension { get; init; }
+
+    public bool Exists => File.Exists(FullPath);
+
+    public DateTime LastWriteTime => Exists ? File.GetLastWriteTime(FullPath) : DateTime.MinValue;
 
     public string OutName { get; set; }
 
