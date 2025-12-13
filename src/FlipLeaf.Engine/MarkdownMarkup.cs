@@ -158,13 +158,15 @@ public sealed class SyntaxHighlightCodeBlockExtension : IMarkdownExtension
                 // for C# we use CsharpToColouredHTML
                 using var __ = Bench.Start("ColorCodeBlockRenderer.RenderCSharp");
                 html = _csharpRenderer.RenderCSharp(code);
+                html = $"<code class=\"csharp-to-coloured\">{html}</code>"; // to allow better styling and semantic
             }
             else
             {
                 // for the other cases let's use ColorCore
                 using var __ = Bench.Start("ColorCodeBlockRenderer.ColorCode.GetHtmlString");
-                var formatter = new ColorCode.HtmlFormatter(ColorCode.Styling.StyleDictionary.DefaultLight);
+                var formatter = new ColorCode.HtmlClassFormatter();
                 html = formatter.GetHtmlString(code, language);
+                html = $"<code class=\"color-code\">{html}</code>"; // to allow better styling and semantic
             }
 
             renderer.Write(html);
