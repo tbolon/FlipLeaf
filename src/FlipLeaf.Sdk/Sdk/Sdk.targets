@@ -1,5 +1,13 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
+  <ItemGroup Condition="'$(FlipLeafSdkProjectRef)' == 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\..\FlipLeaf.Engine\FlipLeaf.Engine.csproj" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(FlipLeafSdkProjectRef)' != 'true'">
+    <PackageReference Include="FlipLeaf.Engine" Version="$(FlipLeafVersion)" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="FlipLeaf" />
   </ItemGroup>
