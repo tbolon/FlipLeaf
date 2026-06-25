@@ -1,6 +1,11 @@
 <Solution>
-  <Folder Name="/Solution Items/">
+  <Folder Name="/cfg/">
     <File Path="README.md" />
+    <File Path="src/Directory.Build.props" />
+  </Folder>
+  <Folder Name="/cfg/gh-workflows/">
+    <File Path=".github/workflows/build.yml" />
+    <File Path=".github/workflows/publish-flipleaf-engine.yml" />
   </Folder>
   <Project Path="src/FlipLeaf.Engine/FlipLeaf.Engine.csproj" />
   <Project Path="src/FlipLeaf.Sdk/FlipLeaf.Sdk.csproj" />

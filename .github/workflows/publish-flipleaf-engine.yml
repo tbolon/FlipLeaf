@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "NuGet version to publish (example: 1.0.0-alpha-16 or 1.0.0)"
-        required: true
+        description: "NuGet version to publish (optional). Leave empty to use project version (Directory.Build.props + csproj)."
+        required: false
         type: string
   push:
     tags:
@@ -38,10 +38,17 @@ jobs:
         id: version
         shell: bash
         run: |
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
+            SOURCE="workflow_dispatch input"
+          elif [ "${GITHUB_EVENT_NAME}" = "push" ] && [[ "${GITHUB_REF_NAME}" == v* ]]; then
             VERSION="${GITHUB_REF_NAME#v}"
+            SOURCE="git tag"
+          else
+            VERSION=$(dotnet msbuild "$PROJECT_PATH" -nologo -getProperty:PackageVersion | tail -n 1 | tr -d '\r')
+            SOURCE="MSBuild PackageVersion"
           fi
 
           if [ -z "$VERSION" ]; then
@@ -50,7 +57,7 @@ jobs:
           fi
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Using version: $VERSION"
+          echo "Using version: $VERSION ($SOURCE)"
 
       - name: Restore
         run: dotnet restore "$PROJECT_PATH"
