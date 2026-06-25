@@ -1,5 +1,11 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
+  <PropertyGroup Condition="'$(MicrosoftNETBuildTasksAssembly)' == ''">
+    <MicrosoftNETBuildTasksAssembly>$(MSBuildSDKsPath)\Microsoft.NET.Sdk\tasks\$(MSBuildRuntimeType)\Microsoft.NET.Build.Tasks.dll</MicrosoftNETBuildTasksAssembly>
+  </PropertyGroup>
+
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -9,13 +15,25 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 
-    <FlipLeafVersion Condition="'$(FlipLeafVersion)' == ''">1.0.0-alpha-*</FlipLeafVersion>
+    <FlipLeafVersion Condition="'$(FlipLeafVersion)' == ''">1.0.0-alpha-16</FlipLeafVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="out/**/*.*"/>
     <Content Remove="out/**/*.*"/>
     <Watch Remove="out/**/*.*" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(FlipLeafSdkProjectRef)' == 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\..\FlipLeaf.Engine\FlipLeaf.Engine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(FlipLeafSdkProjectRef)' != 'true'">
+    <PackageReference Include="FlipLeaf.Engine" Version="$(FlipLeafVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="FlipLeaf" />
   </ItemGroup>
 
 </Project>

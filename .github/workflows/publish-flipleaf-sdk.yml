@@ -1,0 +1,78 @@
+name: Publish FlipLeaf.Sdk
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "NuGet version to publish (optional). Leave empty to use project version."
+        required: false
+        type: string
+  push:
+    tags:
+      - "sdk-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_PATH: src/FlipLeaf.Sdk/FlipLeaf.Sdk.csproj
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            10.0.x
+            8.0.x
+
+      - name: Resolve package version
+        id: version
+        shell: bash
+        run: |
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
+            SOURCE="workflow_dispatch input"
+          elif [ "${GITHUB_EVENT_NAME}" = "push" ] && [[ "${GITHUB_REF_NAME}" == sdk-v* ]]; then
+            VERSION="${GITHUB_REF_NAME#sdk-v}"
+            SOURCE="git tag"
+          else
+            VERSION=$(dotnet msbuild "$PROJECT_PATH" -nologo -getProperty:PackageVersion | tail -n 1 | tr -d '\r')
+            SOURCE="MSBuild PackageVersion"
+          fi
+
+          if [ -z "$VERSION" ]; then
+            echo "Version is empty"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Using version: $VERSION ($SOURCE)"
+
+      - name: Restore
+        run: dotnet restore "$PROJECT_PATH"
+
+      - name: Build
+        run: dotnet build "$PROJECT_PATH" --configuration Release --no-restore
+
+      - name: Pack
+        run: dotnet pack "$PROJECT_PATH" --configuration Release --no-build -o ./artifacts -p:ContinuousIntegrationBuild=true -p:Version=${{ steps.version.outputs.version }}
+
+      - name: NuGet login (OIDC)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Publish to NuGet
+        run: dotnet nuget push "./artifacts/FlipLeaf.Sdk.${{ steps.version.outputs.version }}.nupkg" --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json" --skip-duplicate

@@ -6,6 +6,7 @@
   <Folder Name="/cfg/gh-workflows/">
     <File Path=".github/workflows/build.yml" />
     <File Path=".github/workflows/publish-flipleaf-engine.yml" />
+    <File Path=".github/workflows/publish-flipleaf-sdk.yml" />
   </Folder>
   <Project Path="src/FlipLeaf.Engine/FlipLeaf.Engine.csproj" />
   <Project Path="src/FlipLeaf.Sdk/FlipLeaf.Sdk.csproj" />

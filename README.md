@@ -109,6 +109,27 @@ Si le premier argument CLI est `watch`, le moteur surveille les changements de f
 dotnet run -- watch
 ```
 
+## Samples
+
+Un exemple file-based app est disponible ici :
+
+- `samples/flipleaf-official-site/site.cs`
+
+Ce sample montre l’usage de FlipLeaf via la directive `#:sdk FlipLeaf.Sdk@1.0.0-alpha-02`.
+
+Exécution :
+
+```bash
+cd samples/flipleaf-official-site
+dotnet run site.cs
+```
+
+Mode watch :
+
+```bash
+dotnet run site.cs -- watch
+```
+
 ## Exemple réel : `coldwire.net` (FlipLeaf en sous-module)
 
 Le projet `D:\code\perso\coldwire.net` utilise ce repository comme sous-module Git :
