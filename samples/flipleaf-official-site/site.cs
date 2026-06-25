@@ -1,5 +1,4 @@
-#:sdk FlipLeaf.Sdk@1.0.0-alpha-02
-
+#:sdk FlipLeaf.Sdk@1.0.0-beta.1
 using FlipLeaf;
 using System.Xml.Linq;
 
