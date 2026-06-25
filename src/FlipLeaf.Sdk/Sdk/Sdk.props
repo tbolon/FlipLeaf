@@ -15,7 +15,7 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 
-    <FlipLeafVersion Condition="'$(FlipLeafVersion)' == ''">1.0.0-alpha-16</FlipLeafVersion>
+    <FlipLeafVersion Condition="'$(FlipLeafVersion)' == ''">1.0.0-beta.*</FlipLeafVersion>
   </PropertyGroup>
 
   <ItemGroup>

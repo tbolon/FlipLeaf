@@ -5,7 +5,7 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageType>MSBuildSdk</PackageType>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
-    <VersionSuffix>alpha-02</VersionSuffix>  
+    <VersionSuffix>beta.1</VersionSuffix>  
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
